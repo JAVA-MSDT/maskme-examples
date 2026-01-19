@@ -1,0 +1,52 @@
+/**
+ * Copyright (c) 2025: Ahmed Samy, All rights reserved.
+ * LinkedIn: https://www.linkedin.com/in/java-msdt/
+ * GitHub: https://github.com/JAVA-MSDT
+ * Email: serenitydiver@hotmail.com
+ */
+package com.javamsdt.masking.maskconverter;
+
+import com.javamsdt.maskme.api.converter.MaskMeConverter;
+import com.javamsdt.maskme.api.utils.MaskMeFieldAccessUtil;
+
+/**
+ * User's custom String converter with higher priority
+ */
+public class CustomStringConverter implements MaskMeConverter {
+
+    @Override
+    public int priority() {
+        return 10; // Higher than default converters (0)
+    }
+
+    @Override
+    public boolean canConvert(Class<?> type) {
+        return type == String.class;
+    }
+
+    @Override
+    public Object convert(String value, Class<?> targetType, Object originalValue,
+                          Object containingObject, String fieldName) {
+
+        String processValue = MaskMeFieldAccessUtil.getMaskedValueFromAnotherFieldOrMaskedValue(value, containingObject);
+        // User's custom logic for String fields
+
+        if (fieldName.contains("password")) {
+            return "************";
+        }
+
+        if (fieldName.contains("email")) {
+//            if(value.isEmpty()) {
+//                return "[EMAIL PROTECTED]";
+//            }
+            System.out.println("processValue:: " + processValue.length());
+            if(processValue.isEmpty()) {
+                return "[EMAIL PROTECTED]";
+            }
+            return processValue;
+        }
+
+        // Default fallback to the original value if not handled
+        return null;
+    }
+}
