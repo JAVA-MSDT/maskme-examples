@@ -1,5 +1,4 @@
-# maskme-guides - MaskMe - Field Masking Library
-- Example of how to use the MaskMe library in your code.
+# MaskMe-Guide and use cases for MaskMe Field Masking Library
 
 ## 📋 Overview
 
