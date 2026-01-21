@@ -4,10 +4,10 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class MaskingApplication {
+public class SpringMaskingApplication {
 
 	public static void main(String[] args) {
-		SpringApplication.run(MaskingApplication.class, args);
+		SpringApplication.run(SpringMaskingApplication.class, args);
 	}
 
 }

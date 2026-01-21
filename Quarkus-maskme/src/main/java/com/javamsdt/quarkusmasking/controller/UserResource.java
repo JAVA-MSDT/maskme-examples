@@ -4,25 +4,25 @@
  * GitHub: https://github.com/JAVA-MSDT
  * Email: serenitydiver@hotmail.com
  */
-package com.javamsdt.masking.controller;
+package com.javamsdt.quarkusmasking.controller;
 
-import com.javamsdt.masking.domain.User;
-import com.javamsdt.masking.dto.UserDto;
-import com.javamsdt.masking.mapper.UserMapper;
-import com.javamsdt.masking.maskme.condition.PhoneMaskingCondition;
-import com.javamsdt.masking.service.UserService;
+import com.javamsdt.quarkusmasking.domain.User;
+import com.javamsdt.quarkusmasking.dto.UserDto;
+import com.javamsdt.quarkusmasking.mapper.UserMapper;
+import com.javamsdt.quarkusmasking.maskme.condition.PhoneMaskingCondition;
+import com.javamsdt.quarkusmasking.service.UserService;
 import com.javamsdt.maskme.MaskMeInitializer;
 import com.javamsdt.maskme.implementation.condition.MaskMeOnInput;
-import lombok.RequiredArgsConstructor;
-import org.jspecify.annotations.NonNull;
-import org.springframework.web.bind.annotation.*;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
 
 import java.util.List;
 
 /**
- * REST controller demonstrating MaskMe library usage with Spring Framework.
+ * JAX-RS REST resource demonstrating MaskMe library usage with Quarkus.
  * <p>
- * This controller provides endpoints showcasing different masking scenarios:
+ * This resource provides endpoints showcasing different masking scenarios:
  * <ul>
  *   <li>Unmasked data retrieval</li>
  *   <li>Conditional masking with MaskMeOnInput</li>
@@ -36,13 +36,14 @@ import java.util.List;
  * @author Ahmed Samy
  * @since 1.0.0
  */
-@RestController
-@RequestMapping("/users")
-@RequiredArgsConstructor
-public class UserController {
+@Path("/users")
+public class UserResource {
 
-    private final UserService userService;
-    private final UserMapper userMapper;
+    @Inject
+    UserService userService;
+
+    @Inject
+    UserMapper userMapper;
 
     /**
      * Retrieves a user by ID without any masking applied.
@@ -59,8 +60,10 @@ public class UserController {
      * @param id the user ID
      * @return UserDto with original unmasked data
      */
-    @GetMapping("/{id}")
-    public UserDto getUserById(@PathVariable final Long id) {
+    @GET
+    @Path("/{id}")
+    @Produces(MediaType.APPLICATION_JSON)
+    public UserDto getUserById(@PathParam("id") Long id) {
         return userMapper.toDto(userService.findUserById(id));
     }
 
@@ -81,9 +84,10 @@ public class UserController {
      * @param maskInput the input value for MaskMeOnInput condition (from header)
      * @return UserDto with conditionally masked fields
      */
-    @GetMapping("/masked/{id}")
-    public UserDto getMaskedUserById(@PathVariable final Long id, @RequestHeader("Mask-Input") String maskInput) {
-
+    @GET
+    @Path("/masked/{id}")
+    @Produces(MediaType.APPLICATION_JSON)
+    public UserDto getMaskedUserById(@PathParam("id") Long id, @HeaderParam("Mask-Input") String maskInput) {
         UserDto userDto = userMapper.toDto(userService.findUserById(id));
         return MaskMeInitializer.mask(userDto, MaskMeOnInput.class, maskInput);
     }
@@ -103,8 +107,10 @@ public class UserController {
      * @param id the user ID
      * @return User domain entity with always-masked fields
      */
-    @GetMapping("/user/{id}")
-    public User getUserEntity(@PathVariable final Long id) {
+    @GET
+    @Path("/user/{id}")
+    @Produces(MediaType.APPLICATION_JSON)
+    public User getUserEntity(@PathParam("id") Long id) {
         return MaskMeInitializer.mask(userService.findUserById(id));
     }
 
@@ -132,28 +138,13 @@ public class UserController {
      * @param maskPhone the phone number to mask via PhoneMaskingCondition
      * @return List of UserDto with multiple conditions applied
      */
-    @GetMapping
-    public List<UserDto> getUsers(@RequestHeader("Mask-Input") String maskInput, @RequestHeader("Mask-Phone") String maskPhone) {
-
+    @GET
+    @Produces(MediaType.APPLICATION_JSON)
+    public List<UserDto> getUsers(@HeaderParam("Mask-Input") String maskInput, @HeaderParam("Mask-Phone") String maskPhone) {
         return userService.findUsers().stream()
-                .map(user ->
-                        MaskMeInitializer.mask(userMapper.toDto(user),
-                                getMaskedConditionsForGetAllUsers(maskInput, maskPhone)))
+                .map(user -> MaskMeInitializer.mask(userMapper.toDto(user),
+                        MaskMeOnInput.class, maskInput,
+                        PhoneMaskingCondition.class, maskPhone))
                 .toList();
-    }
-
-    /**
-     * Builds the condition array for multiple condition masking.
-     * <p>
-     * Format: [ConditionClass1, input1, ConditionClass2, input2, ...]
-     * </p>
-     *
-     * @param maskInput input for MaskMeOnInput condition
-     * @param maskPhone input for PhoneMaskingCondition
-     * @return array of conditions and their inputs
-     */
-    private static Object @NonNull [] getMaskedConditionsForGetAllUsers(String maskInput, String maskPhone) {
-        return new Object[]{MaskMeOnInput.class, maskInput,
-                PhoneMaskingCondition.class, maskPhone};
     }
 }

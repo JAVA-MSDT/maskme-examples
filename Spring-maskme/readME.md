@@ -5,7 +5,106 @@
 - This guide demonstrates how to integrate the MaskMe library with Spring Framework applications.
 - Leveraging Spring's dependency injection, configuration management, and web capabilities.
 
-## 🚀 Quick Setup
+## 🚀 Running the Application
+
+### Prerequisites
+- Java 21+
+- Maven 3.6+
+
+### Start the Application
+```bash
+# Clone and navigate to the project
+cd Spring-maskme
+
+# Build and run
+mvn clean install
+mvn spring-boot:run
+```
+
+The application starts on `http://localhost:9090`
+
+### Available Endpoints
+
+| Endpoint             | Method | Headers                                        | Description                       |
+|----------------------|--------|------------------------------------------------|-----------------------------------|
+| `/users/{id}`        | GET    | -                                              | Get user without masking          |
+| `/users/masked/{id}` | GET    | `Mask-Input: maskMe`                           | Get user with conditional masking |
+| `/users`             | GET    | `Mask-Input: maskMe`<br>`Mask-Phone: {phone}`  | Get all users with masking        |
+| `/users/user/{id}`   | GET    | -                                              | Get domain entity with masking    |
+
+### Test with cURL
+
+```bash
+# 1. Get user without masking
+curl http://localhost:9090/users/1
+
+# 2. Get user with masking enabled
+curl -H "Mask-Input: maskMe" http://localhost:9090/users/masked/1
+
+# 3. Get all users with phone masking for specific number
+curl -H "Mask-Input: maskMe" -H "Mask-Phone: 01000000000" http://localhost:9090/users
+
+# 4. Get domain entity (always masks certain fields)
+curl http://localhost:9090/users/user/1
+```
+
+### Expected Responses
+
+#### GET `/users/1` (No Masking)
+```json
+{
+  "id": 1,
+  "name": "Ahmed Samy",
+  "email": "one@mail.com",
+  "password": "123456",
+  "phone": "01000000000",
+  "address": {
+    "id": 1,
+    "street": "first Street",
+    "city": "City One",
+    "zipCode": "Zip One"
+  },
+  "birthDate": "1985-01-25",
+  "balance": 20.0
+}
+```
+
+#### GET `/users/masked/1` with `Mask-Input: maskMe` (With Masking)
+```json
+{
+  "id": 1000,
+  "name": "one@mail.com-M",
+  "email": "[EMAIL PROTECTED]",
+  "password": "************",
+  "phone": "01000000000",
+  "address": {
+    "id": 1,
+    "street": "first Street",
+    "city": "***",
+    "zipCode": "[ZIP_MASKED]"
+  },
+  "birthDate": "1800-01-01",
+  "balance": 0
+}
+```
+
+#### GET `/users` with `Mask-Phone: 01000000000` (Selective Phone Masking)
+```json
+[
+  {
+    "id": 1000,
+    "phone": "***",
+    "...": "other fields masked"
+  },
+  {
+    "id": 1000,
+    "phone": "01000000011",
+    "...": "other fields masked but phone not masked"
+  }
+]
+```
+
+## 🔧 Configuration Setup
 
 ### Step 1: Framework Configuration
 
@@ -221,6 +320,196 @@ public class MaskingProperties {
 }
 ```
 
+## 📚 Practical Examples
+
+### Example 1: @ExcludeMaskMe Annotation
+
+Use `@ExcludeMaskMe` to prevent masking of entire objects or fields:
+
+```java
+public record UserDto(
+    String name,
+    String email,
+    
+    // This entire address object will NOT be processed for masking
+    @ExcludeMaskMe
+    AddressDto address,
+    
+    @MaskMe(conditions = {AlwaysMaskMeCondition.class})
+    String ssn
+) {}
+
+public record AddressDto(
+    String street,
+    @MaskMe(conditions = {AlwaysMaskMeCondition.class})
+    String city  // This will NOT be masked because parent has @ExcludeMaskMe
+) {}
+```
+
+**Use Cases:**
+- Exclude complex nested objects from masking processing
+- Improve performance by skipping unnecessary fields
+- Preserve original data for non-sensitive fields
+
+### Example 2: Multiple Conditions on Same Field
+
+```java
+public record SensitiveDto(
+    // Masked if ANY condition returns true (OR logic)
+    @MaskMe(
+        conditions = {RoleBasedCondition.class, EnvironmentCondition.class, TimeBasedCondition.class},
+        maskValue = "***"
+    )
+    String sensitiveData
+) {}
+
+// Usage in controller
+@GetMapping("/sensitive/{id}")
+public SensitiveDto getData(@PathVariable Long id) {
+    SensitiveDto dto = service.getData(id);
+    
+    return MaskMeInitializer.mask(dto,
+        RoleBasedCondition.class, "ADMIN",
+        EnvironmentCondition.class, "production",
+        TimeBasedCondition.class, LocalTime.now()
+    );
+}
+```
+
+**Behavior:** Field is masked if **ANY** condition evaluates to `true`.
+
+### Example 3: Error Handling in Controllers
+
+```java
+@RestController
+@RequestMapping("/users")
+@RequiredArgsConstructor
+public class UserController {
+    
+    private final UserService userService;
+    private final UserMapper userMapper;
+    
+    @GetMapping("/{id}")
+    public ResponseEntity<UserDto> getUser(
+            @PathVariable Long id,
+            @RequestHeader(value = "Mask-Input", required = false) String maskInput) {
+        
+        try {
+            User user = userService.findUserById(id);
+            UserDto dto = userMapper.toDto(user);
+            
+            // Apply masking if header is present
+            if (maskInput != null && !maskInput.isBlank()) {
+                dto = MaskMeInitializer.mask(dto, MaskMeOnInput.class, maskInput);
+            }
+            
+            return ResponseEntity.ok(dto);
+            
+        } catch (MaskMeException e) {
+            log.error("Masking failed for user {}: {}", id, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(null);
+        } catch (EntityNotFoundException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+    
+    @GetMapping("/batch")
+    public ResponseEntity<List<UserDto>> getBatchUsers(
+            @RequestParam List<Long> ids,
+            @RequestHeader(value = "Mask-Input", required = false) String maskInput) {
+        
+        try {
+            List<UserDto> users = ids.stream()
+                .map(userService::findUserById)
+                .map(userMapper::toDto)
+                .map(dto -> {
+                    try {
+                        return maskInput != null 
+                            ? MaskMeInitializer.mask(dto, MaskMeOnInput.class, maskInput)
+                            : dto;
+                    } catch (MaskMeException e) {
+                        log.warn("Failed to mask user, returning unmasked: {}", e.getMessage());
+                        return dto; // Fallback to unmasked
+                    }
+                })
+                .toList();
+            
+            return ResponseEntity.ok(users);
+            
+        } catch (Exception e) {
+            log.error("Batch processing failed: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+    
+    @ExceptionHandler(MaskMeException.class)
+    public ResponseEntity<ErrorResponse> handleMaskingException(MaskMeException e) {
+        log.error("Masking error: {}", e.getMessage(), e);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+            .body(new ErrorResponse("MASKING_ERROR", "Failed to mask sensitive data"));
+    }
+}
+
+record ErrorResponse(String code, String message) {}
+```
+
+### Example 4: Logging Output
+
+#### Enable Logging in Configuration
+```java
+@Configuration
+public class MaskMeConfiguration {
+    
+    @PostConstruct
+    public void setupMaskMe() {
+        // Enable DEBUG level logging
+        MaskMeLogger.enable(Level.FINE);
+        
+        log.info("MaskMe library initialized with logging enabled");
+    }
+}
+```
+
+#### Expected Log Output
+
+```log
+2025-01-10T10:15:30.123+02:00  INFO 12345 --- [main] c.j.m.m.c.MaskMeConfiguration : MaskMe library initialized with logging enabled
+
+2025-01-10T10:15:31.456+02:00  INFO 12345 --- [main] c.j.m.a.c.MaskMeConditionFactory : [DEBUGGING] Registering framework provider: SpringFrameworkProvider
+
+2025-01-10T10:15:32.789+02:00  INFO 12345 --- [nio-9090-exec-1] c.j.m.i.c.MaskMeOnInput : [DEBUGGING] Input set to: maskMe
+
+2025-01-10T10:15:32.890+02:00  INFO 12345 --- [nio-9090-exec-1] c.j.m.i.c.AlwaysMaskMeCondition : [DEBUGGING] Condition evaluated: shouldMask=true for field=password
+
+2025-01-10T10:15:32.991+02:00  INFO 12345 --- [nio-9090-exec-1] c.j.m.a.c.MaskMeConverter : [DEBUGGING] Converting field 'email' from String to String with maskValue='[EMAIL PROTECTED]'
+
+2025-01-10T10:15:33.092+02:00  WARN 12345 --- [nio-9090-exec-1] c.j.m.a.c.MaskMeConverterRegistry : Fallback conversion used for field 'balance' - no custom converter found
+
+2025-01-10T10:15:33.193+02:00  INFO 12345 --- [nio-9090-exec-1] c.j.m.MaskMeProcessor : Successfully masked 5 fields in UserDto
+```
+
+#### Logging Levels Explained
+
+- **INFO**: High-level operations (initialization, successful masking)
+- **DEBUG** (`Level.FINE`): Detailed traces (condition evaluation, field processing)
+- **WARN**: Recoverable issues (fallback conversions, missing fields)
+- **ERROR**: Critical failures (condition creation errors, invalid inputs)
+
+#### Disable Logging for Production
+```java
+@Configuration
+@Profile("production")
+public class ProductionMaskMeConfiguration {
+    
+    @PostConstruct
+    public void setupMaskMe() {
+        // Disable logging for zero overhead
+        MaskMeLogger.disable();
+    }
+}
+```
+
 ## 🎯 Controller Integration
 
 ### Using MaskMeInitializer (Recommended)
@@ -425,6 +714,84 @@ public class MaskMeAutoConfiguration {
 ```
 
 ## 🧪 Testing with Spring
+
+### Running the Tests
+
+```bash
+# Run all tests
+mvn test
+
+# Run specific test class
+mvn test -Dtest=UserControllerIntegrationTest
+
+# Run with verbose output
+mvn test -X
+```
+
+### Test Coverage
+
+The `UserControllerIntegrationTest` covers all key MaskMe features:
+
+| Test                                                             | What It Verifies                                         |
+|------------------------------------------------------------------|----------------------------------------------------------|
+| `getUserById_WithoutMasking_ReturnsOriginalData`                 | Unmasked endpoint returns original data                  |
+| `getMaskedUserById_WithMaskInput_MasksSensitiveFields`           | MaskMeOnInput condition masks fields correctly           |
+| `getMaskedUserById_WithDifferentInput_DoesNotMask`               | Conditions only trigger with matching input              |
+| `getUsers_WithPhoneMasking_MasksOnlyMatchingPhone`               | Custom PhoneMaskingCondition works with DI               |
+| `getUser_DomainEntity_MasksAlwaysConditionFields`                | AlwaysMaskMeCondition masks without input                |
+| `getMaskedUserById_WithExcludeMaskMe_DoesNotProcessNestedFields` | @ExcludeMaskMe prevents nested processing                |
+| `getMaskedUserById_WithFieldReference_ReplacesPlaceholder`       | Field referencing {fieldName} works                      |
+| `getMaskedUserById_WithCustomConverter_UsesCustomLogic`          | Custom converters override defaults                      |
+| `getMaskedUserById_WithDifferentTypes_ConvertsCorrectly`         | Type conversion for Long, LocalDate, BigDecimal, Instant |
+| `getMaskedUserById_WithNestedObject_MasksNestedFields`           | Nested object masking works recursively                  |
+
+### Expected Test Output
+
+```bash
+$ mvn test -Dtest=UserControllerIntegrationTest
+
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.javamsdt.masking.controller.UserControllerIntegrationTest
+[INFO] Tests run: 10, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] Results:
+[INFO] 
+[INFO] Tests run: 10, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] BUILD SUCCESS
+```
+
+### Writing Your Own Tests
+
+```java
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@AutoConfigureMockMvc
+class MyMaskingTest {
+    
+    @Autowired
+    private MockMvc mockMvc;
+    
+    @Autowired
+    private ObjectMapper objectMapper;
+    
+    @Test
+    void testCustomMasking() throws Exception {
+        MvcResult result = mockMvc.perform(get("/your-endpoint")
+                        .header("Your-Header", "value"))
+                .andExpect(status().isOk())
+                .andReturn();
+        
+        YourDto dto = objectMapper.readValue(
+            result.getResponse().getContentAsString(), 
+            YourDto.class
+        );
+        
+        assertThat(dto.maskedField()).isEqualTo("expected-masked-value");
+    }
+}
+```
 
 ### Unit Testing
 

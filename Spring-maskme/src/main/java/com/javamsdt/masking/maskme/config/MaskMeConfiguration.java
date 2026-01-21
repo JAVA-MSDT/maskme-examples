@@ -23,13 +23,45 @@ import org.springframework.context.annotation.Configuration;
 
 import java.util.logging.Level;
 
+/**
+ * Configuration class for MaskMe library integration with Spring Framework.
+ * <p>
+ * This class configures MaskMe to work with Spring's ApplicationContext
+ * for automatic dependency injection and bean management.
+ * </p>
+ *
+ * <p><b>Key Features:</b></p>
+ * <ul>
+ *   <li>Automatic Spring bean discovery for custom conditions</li>
+ *   <li>@Bean methods for built-in conditions (required for pure Java library)</li>
+ *   <li>Custom converter registration</li>
+ *   <li>Lifecycle management with @PostConstruct and @PreDestroy</li>
+ * </ul>
+ *
+ * <p><b>Usage:</b> This configuration is automatically picked up by Spring's
+ * component scanning. No manual registration needed.</p>
+ *
+ * @author Ahmed Samy
+ * @since 1.0.0
+ */
 @Configuration
 @RequiredArgsConstructor
 @Slf4j
 public class MaskMeConfiguration {
 
+    /**
+     * Spring ApplicationContext for bean resolution.
+     * Injected automatically by Spring via @RequiredArgsConstructor.
+     */
     private final ApplicationContext applicationContext;
 
+    /**
+     * Initializes MaskMe configuration after bean construction.
+     * <p>
+     * This method is automatically invoked by Spring after all dependencies are injected.
+     * It configures logging, registers the Spring framework provider, and sets up custom converters.
+     * </p>
+     */
     @PostConstruct
     public void setupMaskMe() {
         // Logger configuration
@@ -46,19 +78,45 @@ public class MaskMeConfiguration {
         // MaskMeFieldAccessUtil.setUserPattern(Pattern.compile("\\{([^}]+)}"));
     }
 
-    // --- built-in conditions --- //
-    // Declare built-in conditions as beans to avoid NoSuchBeanDefinitionException, because the library is pure java.
+    /**
+     * Declares AlwaysMaskMeCondition as a Spring bean.
+     * <p>
+     * This is REQUIRED because MaskMe is a pure Java library and doesn't
+     * automatically register its built-in conditions with Spring.
+     * Without this @Bean declaration, Spring won't be able to resolve
+     * AlwaysMaskMeCondition when MaskMe requests it.
+     * </p>
+     *
+     * @return a new AlwaysMaskMeCondition instance
+     */
     @Bean
     public AlwaysMaskMeCondition alwaysMaskMeCondition() {
         return new AlwaysMaskMeCondition();
     }
 
+    /**
+     * Declares MaskMeOnInput as a Spring bean.
+     * <p>
+     * This is REQUIRED because MaskMe is a pure Java library and doesn't
+     * automatically register its built-in conditions with Spring.
+     * </p>
+     *
+     * @return a new MaskMeOnInput instance
+     */
     @Bean
     public MaskMeOnInput maskMeOnInput() {
         return new MaskMeOnInput();
     }
     // --- built-in conditions --- //
 
+    /**
+     * Registers the Spring ApplicationContext as the framework provider for MaskMe.
+     * <p>
+     * This provider uses {@code applicationContext.getBean(type)} to resolve
+     * condition instances from Spring's container, enabling full dependency injection
+     * support for custom conditions.
+     * </p>
+     */
     private void registerMaskConditionProvider() {
         MaskMeConditionFactory.setFrameworkProvider(new MaskMeFrameworkProvider() {
             @Override
@@ -73,6 +131,14 @@ public class MaskMeConfiguration {
         });
     }
 
+    /**
+     * Configures custom converters for type conversion during masking.
+     * <p>
+     * Clears any existing global converters to prevent memory leaks from
+     * previous application runs, then registers custom converters that can
+     * override default conversion behavior.
+     * </p>
+     */
     private void setupCustomConverters() {
         // Clear Global
         // to avoid any memory leak from the previous application run.
@@ -84,6 +150,13 @@ public class MaskMeConfiguration {
         MaskMeConverterRegistry.registerGlobal(new CustomStringConverter());
     }
 
+    /**
+     * Cleans up resources on application shutdown.
+     * <p>
+     * This method is automatically invoked by Spring when the application context
+     * is being destroyed. It clears all global converters to prevent memory leaks.
+     * </p>
+     */
     @PreDestroy
     public void destroy() {
         // to avoid any memory leak from the current application run.

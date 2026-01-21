@@ -4,7 +4,7 @@
  * GitHub: https://github.com/JAVA-MSDT
  * Email: serenitydiver@hotmail.com
  */
-package com.javamsdt.masking.dto;
+package com.javamsdt.javamasking.dto;
 
 
 import com.javamsdt.maskme.api.annotation.MaskMe;

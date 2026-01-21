@@ -4,11 +4,11 @@
  * GitHub: https://github.com/JAVA-MSDT
  * Email: serenitydiver@hotmail.com
  */
-package com.javamsdt.masking.dto;
+package com.javamsdt.quarkusmasking.dto;
 
 
 
-import com.javamsdt.masking.maskme.condition.PhoneMaskingCondition;
+import com.javamsdt.quarkusmasking.maskme.condition.PhoneMaskingCondition;
 import com.javamsdt.maskme.api.annotation.ExcludeMaskMe;
 import com.javamsdt.maskme.api.annotation.MaskMe;
 import com.javamsdt.maskme.implementation.condition.AlwaysMaskMeCondition;
@@ -28,6 +28,7 @@ public record UserDto(
         String email,
         @MaskMe(conditions = {AlwaysMaskMeCondition.class})
         String password,
+
         @MaskMe(conditions = {PhoneMaskingCondition.class})
         String phone,
         AddressDto address,
