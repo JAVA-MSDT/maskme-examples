@@ -6,17 +6,40 @@
  */
 package com.javamsdt.javamasking.domain;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
 import java.util.UUID;
 
-@AllArgsConstructor
-@NoArgsConstructor
-@Data
 public class GeoLocation {
     private UUID id;
     private Double longitude;
     private Double latitude;
+
+    public GeoLocation() {
+    }
+
+    public GeoLocation(UUID id, Double longitude, Double latitude) {
+        this.id = id;
+        this.longitude = longitude;
+        this.latitude = latitude;
+    }
+
+    public UUID getId() {
+        return id;
+    }
+
+    public Double getLongitude() {
+        return longitude;
+    }
+
+    public Double getLatitude() {
+        return latitude;
+    }
+
+    @Override
+    public String toString() {
+        return "GeoLocation{" +
+                "id=" + id +
+                ", longitude=" + longitude +
+                ", latitude=" + latitude +
+                '}';
+    }
 }

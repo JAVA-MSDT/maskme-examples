@@ -8,13 +8,8 @@ package com.javamsdt.javamasking.domain;
 
 import com.javamsdt.maskme.api.annotation.MaskMe;
 import com.javamsdt.maskme.implementation.condition.AlwaysMaskMeCondition;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 
-@Data
-@AllArgsConstructor
-@NoArgsConstructor
+
 public class Address {
     private Long id;
     @MaskMe(conditions = {AlwaysMaskMeCondition.class}, maskValue = "*****")
@@ -25,4 +20,64 @@ public class Address {
     private String zipCode;
     private String country;
     private GeoLocation geoLocation;
+
+    public Address() {
+    }
+
+    public Address(Long id, String street, String building, String city, String state, String zipCode, String country, GeoLocation geoLocation) {
+        this.id = id;
+        this.street = street;
+        this.building = building;
+        this.city = city;
+        this.state = state;
+        this.zipCode = zipCode;
+        this.country = country;
+        this.geoLocation = geoLocation;
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public String getStreet() {
+        return street;
+    }
+
+    public String getBuilding() {
+        return building;
+    }
+
+    public String getCity() {
+        return city;
+    }
+
+    public String getState() {
+        return state;
+    }
+
+    public String getZipCode() {
+        return zipCode;
+    }
+
+    public String getCountry() {
+        return country;
+    }
+
+    public GeoLocation getGeoLocation() {
+        return geoLocation;
+    }
+
+    @Override
+    public String toString() {
+        return "Address{" +
+                "id=" + id +
+                ", street='" + street + '\'' +
+                ", building='" + building + '\'' +
+                ", city='" + city + '\'' +
+                ", state='" + state + '\'' +
+                ", zipCode='" + zipCode + '\'' +
+                ", country='" + country + '\'' +
+                ", geoLocation=" + geoLocation +
+                '}';
+    }
 }

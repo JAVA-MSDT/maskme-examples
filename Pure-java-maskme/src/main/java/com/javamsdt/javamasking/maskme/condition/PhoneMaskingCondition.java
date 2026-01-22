@@ -8,7 +8,6 @@ package com.javamsdt.javamasking.maskme.condition;
 
 import com.javamsdt.javamasking.service.UserService;
 import com.javamsdt.maskme.api.condition.MaskMeCondition;
-import lombok.RequiredArgsConstructor;
 
 /**
  * Custom masking condition that masks phone numbers based on runtime input
@@ -37,7 +36,6 @@ import lombok.RequiredArgsConstructor;
  * @author Ahmed Samy
  * @since 1.0.0
  */
-@RequiredArgsConstructor
 public class PhoneMaskingCondition implements MaskMeCondition {
 
     /**
@@ -50,6 +48,10 @@ public class PhoneMaskingCondition implements MaskMeCondition {
      * Set via {@link #setInput(Object)} method.
      */
     private String input;
+
+    public PhoneMaskingCondition(UserService userService) {
+        this.userService = userService;
+    }
 
     /**
      * Determines whether the field should be masked based on:

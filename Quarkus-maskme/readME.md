@@ -103,6 +103,111 @@ public class MaskMeConfiguration {
 }
 ```
 
+### ⚠️ Critical: Why @Unremovable is Required
+
+**Quarkus removes "unused" beans at build time** for optimization. MaskMe creates a NEW instance every time it encounters a condition annotation unless you register them with `@Unremovable`.
+
+#### Without @Unremovable (Beans Removed - Creates New Instances)
+```java
+// If you DON'T add @Unremovable:
+@Produces
+@ApplicationScoped
+public AlwaysMaskMeCondition alwaysMaskMeCondition() {
+    return new AlwaysMaskMeCondition();
+}
+
+public record UserDto(
+    @MaskMe(conditions = {AlwaysMaskMeCondition.class}) String field1,  // Bean removed! New instance #1
+    @MaskMe(conditions = {AlwaysMaskMeCondition.class}) String field2,  // Bean removed! New instance #2
+    @MaskMe(conditions = {AlwaysMaskMeCondition.class}) String field3   // Bean removed! New instance #3
+) {}
+// Result: Quarkus removes the bean → MaskMe falls back to reflection → 3 separate instances
+```
+
+#### With @Unremovable (Singleton - Reuses Same Instance)
+```java
+// When you add @Unremovable:
+@Produces
+@ApplicationScoped
+@Unremovable  // Tells Quarkus: "Keep this bean!"
+public AlwaysMaskMeCondition alwaysMaskMeCondition() {
+    return new AlwaysMaskMeCondition();
+}
+
+public record UserDto(
+    @MaskMe(conditions = {AlwaysMaskMeCondition.class}) String field1,  // Same CDI instance
+    @MaskMe(conditions = {AlwaysMaskMeCondition.class}) String field2,  // Same CDI instance
+    @MaskMe(conditions = {AlwaysMaskMeCondition.class}) String field3   // Same CDI instance
+) {}
+// Result: 1 singleton instance reused 3 times
+```
+
+#### Why Quarkus Removes Beans
+Quarkus performs **build-time optimization**:
+- Scans for beans that are directly `@Inject`ed
+- Removes beans that appear "unused"
+- MaskMe looks up beans **programmatically** via `CDI.current().select(type).get()`
+- Quarkus doesn't see this as "usage" → removes the bean
+- `@Unremovable` tells Quarkus: "Keep this bean even if it looks unused"
+
+#### Benefits of @Unremovable Registration
+- ✅ **Memory efficient** - One instance instead of many
+- ✅ **Better performance** - No reflection overhead
+- ✅ **Prevents build errors** - Avoids "bean not found" at runtime
+- ✅ **Required for custom conditions** - Enables dependency injection
+
+#### When @Unremovable is REQUIRED
+For custom conditions with dependencies:
+```java
+@ApplicationScoped
+@Unremovable  // MUST have this!
+public class PhoneMaskingCondition implements MaskMeCondition {
+    private final UserService userService;  // Dependency
+    
+    public PhoneMaskingCondition(UserService userService) {
+        this.userService = userService;  // Quarkus injects this
+    }
+}
+```
+
+Without `@Unremovable`, Quarkus removes the bean → MaskMe tries `new PhoneMaskingCondition()` via reflection → fails (no no-arg constructor).
+
+## 🏗️ Design Philosophy
+
+### Why Register Conditions with @Unremovable?
+
+MaskMe is **framework-agnostic** by design. It doesn't cache condition instances internally, giving you full control over lifecycle management.
+
+#### How It Works
+
+```java
+// MaskMe asks your framework: "Do you have an instance?"
+MaskMeConditionFactory.setFrameworkProvider(type -> {
+    return CDI.current().select(type).get();  // Quarkus CDI manages lifecycle
+});
+
+// If no framework provider, falls back to reflection:
+new AlwaysMaskMeCondition()  // Creates new instance each time
+```
+
+#### Why This Design?
+
+**Benefits:**
+- ✅ Works with ANY framework (Spring, Quarkus, Guice, Pure Java)
+- ✅ Quarkus CDI manages lifecycle (creation, destruction, scope)
+- ✅ No memory leaks (Quarkus handles cleanup)
+- ✅ Thread-safe (Quarkus handles synchronization)
+- ✅ You control singleton behavior via @Produces + @Unremovable
+
+**Alternative Would Be Worse:**
+If MaskMe cached internally, it would need to:
+- Manage lifecycle (when to create/destroy?)
+- Handle thread safety (synchronization overhead)
+- Deal with memory leaks (when to clear cache?)
+- Lose Quarkus benefits (no CDI, no AOP, no lifecycle hooks)
+
+**Conclusion:** Not a limitation—it's a design decision that keeps the library lightweight, framework-agnostic, and delegates lifecycle management to Quarkus CDI.
+
 ### Step 2: Custom Conditions with CDI
 
 Create CDI-managed conditions with dependency injection.

@@ -179,6 +179,94 @@ public class MaskingConfiguration {
 }
 ```
 
+### ⚠️ Important: Why Register Built-in Conditions?
+
+**MaskMe creates a NEW instance every time** it encounters a condition annotation unless you register them as singletons.
+
+#### Without Registration (Reflection - Creates New Instances)
+```java
+// If you DON'T register AlwaysMaskMeCondition as a @Bean:
+public record UserDto(
+    @MaskMe(conditions = {AlwaysMaskMeCondition.class}) String field1,  // New instance #1
+    @MaskMe(conditions = {AlwaysMaskMeCondition.class}) String field2,  // New instance #2
+    @MaskMe(conditions = {AlwaysMaskMeCondition.class}) String field3   // New instance #3
+) {}
+// Result: 3 separate instances created via reflection
+```
+
+#### With Registration (Singleton - Reuses Same Instance)
+```java
+// When you register as @Bean:
+@Bean
+public AlwaysMaskMeCondition alwaysMaskMeCondition() {
+    return new AlwaysMaskMeCondition();  // Created once by Spring
+}
+
+public record UserDto(
+    @MaskMe(conditions = {AlwaysMaskMeCondition.class}) String field1,  // Same instance
+    @MaskMe(conditions = {AlwaysMaskMeCondition.class}) String field2,  // Same instance
+    @MaskMe(conditions = {AlwaysMaskMeCondition.class}) String field3   // Same instance
+) {}
+// Result: 1 singleton instance reused 3 times
+```
+
+#### Benefits of Singleton Registration
+- ✅ **Memory efficient** - One instance instead of many
+- ✅ **Better performance** - No reflection overhead
+- ✅ **Consistent with Spring patterns** - Beans are singletons by default
+- ✅ **Required for custom conditions** - Enables dependency injection
+
+#### When Registration is REQUIRED
+For custom conditions with dependencies:
+```java
+@Component  // MUST be registered for DI to work
+public class PhoneMaskingCondition implements MaskMeCondition {
+    private final UserService userService;  // Dependency
+    
+    public PhoneMaskingCondition(UserService userService) {
+        this.userService = userService;  // Spring injects this
+    }
+}
+```
+
+Without `@Component`, MaskMe would try `new PhoneMaskingCondition()` via reflection, which fails because there's no no-arg constructor.
+
+## 🏗️ Design Philosophy
+
+### Why Register Conditions as Singletons?
+
+MaskMe is **framework-agnostic** by design. It doesn't cache condition instances internally, giving you full control over lifecycle management.
+
+#### How It Works
+
+```java
+// MaskMe asks your framework: "Do you have an instance?"
+MaskMeConditionFactory.setFrameworkProvider(type -> {
+    return applicationContext.getBean(type);  // Spring manages lifecycle
+});
+
+// If no framework provider, falls back to reflection:
+new AlwaysMaskMeCondition()  // Creates new instance each time
+```
+
+#### Why This Design?
+
+**Benefits:**
+- ✅ Works with ANY framework (Spring, Quarkus, Guice, Pure Java)
+- ✅ Spring manages lifecycle (creation, destruction, scope)
+- ✅ No memory leaks (Spring handles cleanup)
+- ✅ Thread-safe (Spring handles synchronization)
+- ✅ You control singleton behavior via @Bean
+
+**Alternative Would Be Worse:**
+If MaskMe cached internally, it would need to:
+- Manage lifecycle (when to create/destroy?)
+- Handle thread safety (synchronization overhead)
+- Deal with memory leaks (when to clear cache?)
+- Lose Spring benefits (no DI, no AOP, no lifecycle hooks)
+
+**Conclusion:** Not a limitation—it's a design decision that keeps the library lightweight, framework-agnostic, and delegates lifecycle management to Spring.
+
 ### Step 2: Custom Conditions with Spring DI
 
 Create Spring-managed conditions with dependency injection:

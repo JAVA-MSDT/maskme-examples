@@ -367,6 +367,64 @@ public class MaskMeConditionFactory {
 - Dependency injection support.
 - Fallback to reflection-based creation.
 
+### Design Philosophy: Framework-Agnostic Architecture
+
+**Why MaskMe Doesn't Cache Condition Instances:**
+
+MaskMe is **framework-agnostic** by design. It doesn't cache condition instances internally, giving you full control over lifecycle management.
+
+#### How It Works
+
+```java
+// MaskMe asks your framework: "Do you have an instance?"
+MaskMeConditionFactory.setFrameworkProvider(type -> {
+    return yourFramework.getInstance(type);  // Framework controls lifecycle
+});
+
+// If no framework provider, falls back to reflection:
+new AlwaysMaskMeCondition()  // Creates new instance each time
+```
+
+#### Without Framework Registration (Reflection)
+```java
+@MaskMe(conditions = {AlwaysMaskMeCondition.class}) String field1;  // New instance #1
+@MaskMe(conditions = {AlwaysMaskMeCondition.class}) String field2;  // New instance #2
+@MaskMe(conditions = {AlwaysMaskMeCondition.class}) String field3;  // New instance #3
+// Result: 3 separate instances via reflection
+```
+
+#### With Framework Registration (Singleton)
+```java
+// Spring: @Bean, Quarkus: @Produces, Pure Java: Map
+@Bean
+public AlwaysMaskMeCondition alwaysMaskMeCondition() {
+    return new AlwaysMaskMeCondition();  // Created once
+}
+
+@MaskMe(conditions = {AlwaysMaskMeCondition.class}) String field1;  // Same instance
+@MaskMe(conditions = {AlwaysMaskMeCondition.class}) String field2;  // Same instance
+@MaskMe(conditions = {AlwaysMaskMeCondition.class}) String field3;  // Same instance
+// Result: 1 singleton reused 3 times
+```
+
+#### Why This Design?
+
+**Benefits:**
+- ✅ Works with ANY framework (Spring, Quarkus, Guice, Pure Java)
+- ✅ Framework manages lifecycle (creation, destruction, scope)
+- ✅ No memory leaks (framework handles cleanup)
+- ✅ Thread-safe (framework handles synchronization)
+- ✅ You control singleton behavior
+
+**Alternative Would Be Worse:**
+If MaskMe cached internally, it would need to:
+- Manage lifecycle (when to create/destroy?)
+- Handle thread safety (synchronization overhead)
+- Deal with memory leaks (when to clear cache?)
+- Lose framework benefits (no DI, no AOP, no lifecycle hooks)
+
+**Conclusion:** Not a limitation—it's a design decision that keeps the library lightweight, framework-agnostic, and delegates lifecycle management to frameworks (their job).
+
 ## 🔍 Field Processing Architecture
 
 ### Field Discovery Process

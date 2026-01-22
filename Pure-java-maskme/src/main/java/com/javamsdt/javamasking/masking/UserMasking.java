@@ -3,7 +3,6 @@ package com.javamsdt.javamasking.masking;
 import com.javamsdt.javamasking.domain.User;
 import com.javamsdt.javamasking.dto.UserDto;
 import com.javamsdt.javamasking.mapper.UserMapper;
-import com.javamsdt.javamasking.mapper.UserMapperImpl;
 import com.javamsdt.javamasking.maskme.condition.PhoneMaskingCondition;
 import com.javamsdt.javamasking.service.UserService;
 import com.javamsdt.maskme.MaskMeInitializer;
@@ -42,7 +41,7 @@ public class UserMasking {
      */
     public UserMasking(UserService userService) {
         this.userService = userService;
-        this.userMapper = new UserMapperImpl();
+        this.userMapper = new UserMapper();
     }
 
     /**

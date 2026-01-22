@@ -6,13 +6,16 @@
  */
 package com.javamsdt.javamasking.domain;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-
-@Getter
-@AllArgsConstructor
 public enum Gender {
     MALE("Male"), FEMALE("Female");
 
     private final String value;
+
+    Gender(String value) {
+        this.value = value;
+    }
+
+    public String getValue() {
+        return value;
+    }
 }

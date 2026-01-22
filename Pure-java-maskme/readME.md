@@ -113,6 +113,107 @@ public class MaskMeConfiguration {
 }
 ```
 
+### ⚠️ Important: Why Register Conditions in the Map?
+
+**MaskMe creates a NEW instance every time** it encounters a condition annotation unless you register them in your Map as singletons.
+
+#### Without Registration (Reflection - Creates New Instances)
+```java
+// If you DON'T register AlwaysMaskMeCondition:
+public record UserDto(
+    @MaskMe(conditions = {AlwaysMaskMeCondition.class}) String field1,  // New instance #1
+    @MaskMe(conditions = {AlwaysMaskMeCondition.class}) String field2,  // New instance #2
+    @MaskMe(conditions = {AlwaysMaskMeCondition.class}) String field3   // New instance #3
+) {}
+// Result: 3 separate instances created via reflection
+```
+
+#### With Registration (Singleton - Reuses Same Instance)
+```java
+// When you register in the Map:
+instances.put(AlwaysMaskMeCondition.class, new AlwaysMaskMeCondition());
+
+public record UserDto(
+    @MaskMe(conditions = {AlwaysMaskMeCondition.class}) String field1,  // Same instance from Map
+    @MaskMe(conditions = {AlwaysMaskMeCondition.class}) String field2,  // Same instance from Map
+    @MaskMe(conditions = {AlwaysMaskMeCondition.class}) String field3   // Same instance from Map
+) {}
+// Result: 1 singleton instance reused 3 times
+```
+
+#### Benefits of Singleton Registration
+- ✅ **Memory efficient** - One instance instead of many
+- ✅ **Better performance** - No reflection overhead
+- ✅ **Consistent behavior** - Same instance state across all usages
+- ✅ **Required for custom conditions** - Enables manual dependency injection
+
+#### When Registration is REQUIRED
+For custom conditions with dependencies:
+```java
+public class PhoneMaskingCondition implements MaskMeCondition {
+    private final UserService userService;  // Dependency
+    
+    public PhoneMaskingCondition(UserService userService) {
+        this.userService = userService;  // You inject this manually
+    }
+}
+
+// MUST register with dependency:
+instances.put(PhoneMaskingCondition.class, new PhoneMaskingCondition(userService));
+```
+
+Without registration, MaskMe tries `new PhoneMaskingCondition()` via reflection → fails (no no-arg constructor).
+
+#### Optional: Register Built-in Conditions Too
+While `AlwaysMaskMeCondition` and `MaskMeOnInput` work without registration (they have no-arg constructors), registering them provides singleton behavior:
+
+```java
+private static void registerConditionInstances(UserService userService) {
+    // Optional: Register built-in conditions for singleton behavior
+    instances.put(AlwaysMaskMeCondition.class, new AlwaysMaskMeCondition());
+    instances.put(MaskMeOnInput.class, new MaskMeOnInput());
+    
+    // Required: Register custom conditions with dependencies
+    instances.put(PhoneMaskingCondition.class, new PhoneMaskingCondition(userService));
+}
+```
+
+## 🏗️ Design Philosophy
+
+### Why Register Conditions in the Map?
+
+MaskMe is **framework-agnostic** by design. It doesn't cache condition instances internally, giving you full control over lifecycle management.
+
+#### How It Works
+
+```java
+// MaskMe asks your framework: "Do you have an instance?"
+MaskMeConditionFactory.setFrameworkProvider(type -> {
+    return instances.get(type);  // Your Map manages lifecycle
+});
+
+// If no framework provider, falls back to reflection:
+new AlwaysMaskMeCondition()  // Creates new instance each time
+```
+
+#### Why This Design?
+
+**Benefits:**
+- ✅ Works with ANY framework (Spring, Quarkus, Guice, Pure Java)
+- ✅ You manage lifecycle (creation, destruction, scope)
+- ✅ No memory leaks (you control cleanup)
+- ✅ Thread-safe (you control synchronization if needed)
+- ✅ You control singleton behavior via Map
+
+**Alternative Would Be Worse:**
+If MaskMe cached internally, it would need to:
+- Manage lifecycle (when to create/destroy?)
+- Handle thread safety (synchronization overhead)
+- Deal with memory leaks (when to clear cache?)
+- Lose flexibility (no custom DI solutions)
+
+**Conclusion:** Not a limitation—it's a design decision that keeps the library lightweight, framework-agnostic, and delegates lifecycle management to your chosen approach.
+
 ### Step 2: Custom Conditions with Manual DI
 
 Create conditions with constructor-based dependency injection:

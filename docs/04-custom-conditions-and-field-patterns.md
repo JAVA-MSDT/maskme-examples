@@ -442,7 +442,40 @@ public SpringManagedCondition springManagedCondition() {
 }
 ```
 
-### 4. Performance Considerations
+### 4. Singleton Registration
+
+**Why Register Conditions as Singletons:**
+
+MaskMe is **framework-agnostic** by design. It doesn't cache condition instances internally, giving you full control over lifecycle management.
+
+```java
+// Without registration (Reflection - Creates New Instances)
+@MaskMe(conditions = {AlwaysMaskMeCondition.class}) String field1;  // New instance #1
+@MaskMe(conditions = {AlwaysMaskMeCondition.class}) String field2;  // New instance #2
+@MaskMe(conditions = {AlwaysMaskMeCondition.class}) String field3;  // New instance #3
+// Result: 3 separate instances via reflection
+
+// With registration (Singleton - Reuses Same Instance)
+@Bean  // Spring
+public AlwaysMaskMeCondition alwaysMaskMeCondition() {
+    return new AlwaysMaskMeCondition();  // Created once
+}
+
+@MaskMe(conditions = {AlwaysMaskMeCondition.class}) String field1;  // Same instance
+@MaskMe(conditions = {AlwaysMaskMeCondition.class}) String field2;  // Same instance
+@MaskMe(conditions = {AlwaysMaskMeCondition.class}) String field3;  // Same instance
+// Result: 1 singleton reused 3 times
+```
+
+**Benefits:**
+- ✅ Memory efficient - One instance instead of many
+- ✅ Better performance - No reflection overhead
+- ✅ Framework manages lifecycle (creation, destruction, scope)
+- ✅ Required for conditions with dependencies
+
+**Conclusion:** Not a limitation—it's a design decision that keeps the library lightweight, framework-agnostic, and delegates lifecycle management to frameworks.
+
+### 5. Performance Considerations
 
 ```java
 public class OptimizedCondition implements MaskMeCondition {

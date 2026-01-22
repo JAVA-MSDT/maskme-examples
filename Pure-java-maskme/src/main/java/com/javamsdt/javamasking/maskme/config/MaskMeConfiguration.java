@@ -31,6 +31,9 @@ import java.util.logging.Level;
  */
 public class MaskMeConfiguration {
 
+    private MaskMeConfiguration() {
+
+    }
     /**
      * Registry for storing condition instances with their dependencies.
      * Key: Condition class type
@@ -94,6 +97,7 @@ public class MaskMeConfiguration {
     private static void registerFrameworkProvider() {
         MaskMeConditionFactory.setFrameworkProvider(new MaskMeFrameworkProvider() {
             @Override
+            @SuppressWarnings("unchecked")
             public <T> T getInstance(Class<T> type) {
                 return (T) instances.get(type);
             }
