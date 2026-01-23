@@ -6,13 +6,13 @@
 package com.javamsdt.masking.maskme.config;
 
 import com.javamsdt.masking.maskme.converter.CustomStringConverter;
-import com.javamsdt.maskme.api.condition.MaskMeConditionFactory;
-import com.javamsdt.maskme.api.condition.MaskMeFrameworkProvider;
-import com.javamsdt.maskme.api.converter.MaskMeConverterRegistry;
-import com.javamsdt.maskme.api.exception.MaskMeException;
-import com.javamsdt.maskme.implementation.condition.AlwaysMaskMeCondition;
-import com.javamsdt.maskme.implementation.condition.MaskMeOnInput;
-import com.javamsdt.maskme.logging.MaskMeLogger;
+import io.github.javamsdt.maskme.api.condition.MaskMeConditionFactory;
+import io.github.javamsdt.maskme.api.condition.MaskMeFrameworkProvider;
+import io.github.javamsdt.maskme.api.converter.MaskMeConverterRegistry;
+import io.github.javamsdt.maskme.api.exception.MaskMeException;
+import io.github.javamsdt.maskme.implementation.condition.AlwaysMaskMeCondition;
+import io.github.javamsdt.maskme.implementation.condition.MaskMeOnInput;
+import io.github.javamsdt.maskme.logging.MaskMeLogger;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;

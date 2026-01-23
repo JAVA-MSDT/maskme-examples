@@ -5,12 +5,12 @@
  */
 package com.javamsdt.quarkusmasking.maskme.config;
 
-import com.javamsdt.maskme.api.condition.MaskMeConditionFactory;
-import com.javamsdt.maskme.api.condition.MaskMeFrameworkProvider;
-import com.javamsdt.maskme.api.converter.MaskMeConverterRegistry;
-import com.javamsdt.maskme.implementation.condition.AlwaysMaskMeCondition;
-import com.javamsdt.maskme.implementation.condition.MaskMeOnInput;
-import com.javamsdt.maskme.logging.MaskMeLogger;
+import io.github.javamsdt.maskme.api.condition.MaskMeConditionFactory;
+import io.github.javamsdt.maskme.api.condition.MaskMeFrameworkProvider;
+import io.github.javamsdt.maskme.api.converter.MaskMeConverterRegistry;
+import io.github.javamsdt.maskme.implementation.condition.AlwaysMaskMeCondition;
+import io.github.javamsdt.maskme.implementation.condition.MaskMeOnInput;
+import io.github.javamsdt.maskme.logging.MaskMeLogger;
 import com.javamsdt.quarkusmasking.maskme.converter.CustomStringConverter;
 import io.quarkus.arc.Unremovable;
 import io.quarkus.runtime.StartupEvent;

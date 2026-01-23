@@ -468,9 +468,9 @@ public AlwaysMaskMeCondition alwaysMaskMeCondition() {
 ```
 
 **Benefits:**
-- ✅ Memory efficient - One instance instead of many
-- ✅ Better performance - No reflection overhead
-- ✅ Framework manages lifecycle (creation, destruction, scope)
+- ✅ Memory efficient – One instance instead of many
+- ✅ Better performance – No reflection overhead
+- ✅ A framework manages lifecycle (creation, destruction, scope)
 - ✅ Required for conditions with dependencies
 
 **Conclusion:** Not a limitation—it's a design decision that keeps the library lightweight, framework-agnostic, and delegates lifecycle management to frameworks.

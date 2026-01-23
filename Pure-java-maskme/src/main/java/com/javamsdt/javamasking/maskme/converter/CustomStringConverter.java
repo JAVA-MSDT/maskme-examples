@@ -6,8 +6,8 @@
  */
 package com.javamsdt.javamasking.maskme.converter;
 
-import com.javamsdt.maskme.api.converter.MaskMeConverter;
-import com.javamsdt.maskme.api.utils.MaskMeFieldAccessUtil;
+import io.github.javamsdt.maskme.api.converter.MaskMeConverter;
+import io.github.javamsdt.maskme.api.utils.MaskMeFieldAccessUtil;
 
 /**
  * User's custom String converter with higher priority

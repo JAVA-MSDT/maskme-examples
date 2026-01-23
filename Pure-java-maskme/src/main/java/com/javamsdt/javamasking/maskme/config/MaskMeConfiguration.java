@@ -3,10 +3,10 @@ package com.javamsdt.javamasking.maskme.config;
 import com.javamsdt.javamasking.maskme.condition.PhoneMaskingCondition;
 import com.javamsdt.javamasking.maskme.converter.CustomStringConverter;
 import com.javamsdt.javamasking.service.UserService;
-import com.javamsdt.maskme.api.condition.MaskMeConditionFactory;
-import com.javamsdt.maskme.api.condition.MaskMeFrameworkProvider;
-import com.javamsdt.maskme.api.converter.MaskMeConverterRegistry;
-import com.javamsdt.maskme.logging.MaskMeLogger;
+import io.github.javamsdt.maskme.api.condition.MaskMeConditionFactory;
+import io.github.javamsdt.maskme.api.condition.MaskMeFrameworkProvider;
+import io.github.javamsdt.maskme.api.converter.MaskMeConverterRegistry;
+import io.github.javamsdt.maskme.logging.MaskMeLogger;
 
 import java.util.HashMap;
 import java.util.Map;

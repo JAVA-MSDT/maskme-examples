@@ -72,7 +72,7 @@ public class MaskMeConfiguration {
                 try {
                     return CDI.current().select(type).get();
                 } catch (Exception e) {
-                    return null; // Let library fall back to reflection
+                    return null; // Let the library fall back to reflection
                 }
             }
         });
@@ -107,7 +107,7 @@ public class MaskMeConfiguration {
 
 **Quarkus removes "unused" beans at build time** for optimization. MaskMe creates a NEW instance every time it encounters a condition annotation unless you register them with `@Unremovable`.
 
-#### Without @Unremovable (Beans Removed - Creates New Instances)
+#### Without @Unremovable (Beans Removed – Creates New Instances)
 ```java
 // If you DON'T add @Unremovable:
 @Produces
@@ -124,7 +124,7 @@ public record UserDto(
 // Result: Quarkus removes the bean → MaskMe falls back to reflection → 3 separate instances
 ```
 
-#### With @Unremovable (Singleton - Reuses Same Instance)
+#### With @Unremovable (Singleton – Reuses Same Instance)
 ```java
 // When you add @Unremovable:
 @Produces
@@ -151,10 +151,10 @@ Quarkus performs **build-time optimization**:
 - `@Unremovable` tells Quarkus: "Keep this bean even if it looks unused"
 
 #### Benefits of @Unremovable Registration
-- ✅ **Memory efficient** - One instance instead of many
-- ✅ **Better performance** - No reflection overhead
-- ✅ **Prevents build errors** - Avoids "bean not found" at runtime
-- ✅ **Required for custom conditions** - Enables dependency injection
+- ✅ **Memory efficient** – One instance instead of many
+- ✅ **Better performance** – No reflection overhead
+- ✅ **Prevents build errors** – Avoids "bean not found" at runtime
+- ✅ **Required for custom conditions** – Enables dependency injection
 
 #### When @Unremovable is REQUIRED
 For custom conditions with dependencies:
@@ -182,12 +182,14 @@ MaskMe is **framework-agnostic** by design. It doesn't cache condition instances
 
 ```java
 // MaskMe asks your framework: "Do you have an instance?"
-MaskMeConditionFactory.setFrameworkProvider(type -> {
-    return CDI.current().select(type).get();  // Quarkus CDI manages lifecycle
-});
+private void registerMaskConditionProvider() {
+    MaskMeConditionFactory.setFrameworkProvider(type -> {
+        return CDI.current().select(type).get();  // Quarkus CDI manages lifecycle
+    });
 
 // If no framework provider, falls back to reflection:
-new AlwaysMaskMeCondition()  // Creates new instance each time
+    new AlwaysMaskMeCondition();  // Creates a new instance each time
+}
 ```
 
 #### Why This Design?
@@ -321,7 +323,7 @@ public class UserResource {
 
 - Use `@Observes ShutdownEvent` to clear global converters
 - Clear request-scoped converters properly
-- Avoid memory leaks with CDI lifecycle
+- Avoid memory leaks with the CDI lifecycle
 
 ## ⚠️ Common Issues & Solutions
 
@@ -384,7 +386,7 @@ private void registerFrameworkProvider() {
             try {
                 return CDI.current().select(type).get();
             } catch (Exception e) {
-                return null; // Allow library to fall back to reflection
+                return null; // Allow a library to fall back to reflection
             }
         }
     });
@@ -405,7 +407,7 @@ private void registerFrameworkProvider() {
 **Why the difference?**
 
 - Spring keeps all beans for runtime flexibility
-- Quarkus removes unused beans for faster startup and lower memory usage
+- Quarkus removes unused beans for a faster startup and lower memory usage
 - Quarkus optimizes for cloud-native and serverless deployments
 
 ---

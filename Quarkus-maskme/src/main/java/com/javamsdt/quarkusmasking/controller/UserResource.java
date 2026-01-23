@@ -6,8 +6,8 @@
  */
 package com.javamsdt.quarkusmasking.controller;
 
-import com.javamsdt.maskme.MaskMeInitializer;
-import com.javamsdt.maskme.implementation.condition.MaskMeOnInput;
+import io.github.javamsdt.maskme.MaskMeInitializer;
+import io.github.javamsdt.maskme.implementation.condition.MaskMeOnInput;
 import com.javamsdt.quarkusmasking.domain.User;
 import com.javamsdt.quarkusmasking.dto.UserDto;
 import com.javamsdt.quarkusmasking.mapper.UserMapper;

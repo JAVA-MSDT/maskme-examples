@@ -3,7 +3,7 @@
 ## 📋 Overview
 
 - This guide demonstrates how to integrate the MaskMe library with pure Java applications.
-- No framework dependencies - simple, lightweight, and portable.
+- No framework dependencies – simple, lightweight, and portable.
 - Manual dependency injection using a Map-based registry.
 
 ## 🚀 Running the Application
@@ -28,11 +28,11 @@ java -cp target/Pure-java-maskme-0.0.1-SNAPSHOT.jar com.javamsdt.javamasking.Jav
 
 ### Demo Scenarios
 
-The application demonstrates 4 masking scenarios:
+The application demonstrates four masking scenarios:
 
 1. **Get User By ID (No Masking)** - Returns original data
-2. **Get Masked User By ID** - Conditional masking with MaskMeOnInput
-3. **Get User Entity (Always Masked)** - AlwaysMaskMeCondition on domain entity
+2. **Get Masked User By ID** – Conditional masking with MaskMeOnInput
+3. **Get User Entity (Always Masked)** – AlwaysMaskMeCondition on domain entity
 4. **Get All Users (Multiple Conditions)** - Combined MaskMeOnInput + PhoneMaskingCondition
 
 ### Expected Output
@@ -117,7 +117,7 @@ public class MaskMeConfiguration {
 
 **MaskMe creates a NEW instance every time** it encounters a condition annotation unless you register them in your Map as singletons.
 
-#### Without Registration (Reflection - Creates New Instances)
+#### Without Registration (Reflection – Creates New Instances)
 ```java
 // If you DON'T register AlwaysMaskMeCondition:
 public record UserDto(
@@ -131,7 +131,9 @@ public record UserDto(
 #### With Registration (Singleton - Reuses Same Instance)
 ```java
 // When you register in the Map:
-instances.put(AlwaysMaskMeCondition.class, new AlwaysMaskMeCondition());
+private static void registerConditionInstances() {
+    instances.put(AlwaysMaskMeCondition.class, new AlwaysMaskMeCondition());
+}
 
 public record UserDto(
     @MaskMe(conditions = {AlwaysMaskMeCondition.class}) String field1,  // Same instance from Map
@@ -142,10 +144,10 @@ public record UserDto(
 ```
 
 #### Benefits of Singleton Registration
-- ✅ **Memory efficient** - One instance instead of many
-- ✅ **Better performance** - No reflection overhead
-- ✅ **Consistent behavior** - Same instance state across all usages
-- ✅ **Required for custom conditions** - Enables manual dependency injection
+- ✅ **Memory efficient** – One instance instead of many
+- ✅ **Better performance** – No reflection overhead
+- ✅ **Consistent behavior** – Same instance state across all usages
+- ✅ **Required for custom conditions** – Enables manual dependency injection
 
 #### When Registration is REQUIRED
 For custom conditions with dependencies:
@@ -159,17 +161,19 @@ public class PhoneMaskingCondition implements MaskMeCondition {
 }
 
 // MUST register with dependency:
-instances.put(PhoneMaskingCondition.class, new PhoneMaskingCondition(userService));
+private static void registerConditionInstances() {
+    instances.put(PhoneMaskingCondition.class, new PhoneMaskingCondition(userService));
+}
 ```
 
 Without registration, MaskMe tries `new PhoneMaskingCondition()` via reflection → fails (no no-arg constructor).
 
-#### Optional: Register Built-in Conditions Too
+#### Register Built-in Conditions Too
 While `AlwaysMaskMeCondition` and `MaskMeOnInput` work without registration (they have no-arg constructors), registering them provides singleton behavior:
 
 ```java
 private static void registerConditionInstances(UserService userService) {
-    // Optional: Register built-in conditions for singleton behavior
+    // Register built-in conditions for singleton behavior
     instances.put(AlwaysMaskMeCondition.class, new AlwaysMaskMeCondition());
     instances.put(MaskMeOnInput.class, new MaskMeOnInput());
     
@@ -188,12 +192,14 @@ MaskMe is **framework-agnostic** by design. It doesn't cache condition instances
 
 ```java
 // MaskMe asks your framework: "Do you have an instance?"
-MaskMeConditionFactory.setFrameworkProvider(type -> {
-    return instances.get(type);  // Your Map manages lifecycle
-});
+private void registerMaskConditionProvider() {
+    MaskMeConditionFactory.setFrameworkProvider(type -> {
+        return instances.get(type);  // Your Map manages lifecycle
+    });
 
 // If no framework provider, falls back to reflection:
-new AlwaysMaskMeCondition()  // Creates new instance each time
+    new AlwaysMaskMeCondition();  // Creates a new instance each time
+}
 ```
 
 #### Why This Design?
@@ -254,7 +260,7 @@ Initialize and use masking in your application:
 ```java
 public class JavaMaskingApplication {
 
-    public static void main(String[] args) {
+    static void main(String[] args) {
         // Initialize services
         UserService userService = new UserService();
         UserMasking userMasking = new UserMasking(userService);
@@ -342,7 +348,7 @@ public class UserMasking {
 
 ### Issue 1: Condition Not Found
 
-**Problem**: Custom condition returns null from framework provider.
+**Problem**: Custom condition returns null from the framework provider.
 
 **Solution**: Register the condition instance in the Map:
 
@@ -360,15 +366,17 @@ private static void registerConditionInstances(UserService userService) {
 
 ```java
 // Wrong
-instances.put(PhoneMaskingCondition.class, new PhoneMaskingCondition());
+private static void registerConditionInstances(UserService userService) {
+    instances.put(PhoneMaskingCondition.class, new PhoneMaskingCondition());
 
 // Correct
-instances.put(PhoneMaskingCondition.class, new PhoneMaskingCondition(userService));
+    instances.put(PhoneMaskingCondition.class, new PhoneMaskingCondition(userService));
+}
 ```
 
 ### Issue 3: Memory Leaks
 
-**Problem**: Converters or instances remain in memory after application shutdown.
+**Problem**: Converters or instances remain in memory after the application shutdown.
 
 **Solution**: Always call destroy():
 
@@ -379,7 +387,7 @@ public static void destroy() {
 }
 ```
 
-## 🔑 Key Differences: Pure Java vs Framework
+## 🔑 Key Differences: Pure Java vs. Framework
 
 | Aspect                     | Pure Java                 | Spring/Quarkus                    |
 |----------------------------|---------------------------|-----------------------------------|
@@ -403,7 +411,7 @@ public static void destroy() {
 - Large applications
 - Complex dependency graphs
 - Need framework features (web, security, etc.)
-- Team familiar with framework
+- Team familiar with a framework
 
 ## 🧪 Testing with Pure Java
 
@@ -471,7 +479,7 @@ class MyMaskingTest {
     
     @Test
     void testCustomMasking() {
-        UserDto dto = new UserDto(...);
+        UserDto dto = new UserDto();
         UserDto masked = MaskMeInitializer.mask(dto, MyCondition.class, "input");
         
         assertThat(masked.field()).isEqualTo("expected-value");

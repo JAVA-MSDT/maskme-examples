@@ -183,7 +183,7 @@ public class MaskingConfiguration {
 
 **MaskMe creates a NEW instance every time** it encounters a condition annotation unless you register them as singletons.
 
-#### Without Registration (Reflection - Creates New Instances)
+#### Without Registration (Reflection – Creates New Instances)
 ```java
 // If you DON'T register AlwaysMaskMeCondition as a @Bean:
 public record UserDto(
@@ -211,10 +211,10 @@ public record UserDto(
 ```
 
 #### Benefits of Singleton Registration
-- ✅ **Memory efficient** - One instance instead of many
-- ✅ **Better performance** - No reflection overhead
-- ✅ **Consistent with Spring patterns** - Beans are singletons by default
-- ✅ **Required for custom conditions** - Enables dependency injection
+- ✅ **Memory efficient** – One instance instead of many
+- ✅ **Better performance** – No reflection overhead
+- ✅ **Consistent with Spring patterns** – Beans are singletons by default
+- ✅ **Required for custom conditions** – Enables dependency injection
 
 #### When Registration is REQUIRED
 For custom conditions with dependencies:
@@ -241,12 +241,14 @@ MaskMe is **framework-agnostic** by design. It doesn't cache condition instances
 
 ```java
 // MaskMe asks your framework: "Do you have an instance?"
-MaskMeConditionFactory.setFrameworkProvider(type -> {
-    return applicationContext.getBean(type);  // Spring manages lifecycle
-});
+private void registerMaskConditionProvider() {
+    MaskMeConditionFactory.setFrameworkProvider(type -> {
+        return applicationContext.getBean(type);  // Spring manages lifecycle
+    });
 
 // If no framework provider, falls back to reflection:
-new AlwaysMaskMeCondition()  // Creates new instance each time
+    new AlwaysMaskMeCondition();  // Creates a new instance each time
+}
 ```
 
 #### Why This Design?
@@ -435,7 +437,7 @@ public record UserDto(
 public record AddressDto(
     String street,
     @MaskMe(conditions = {AlwaysMaskMeCondition.class})
-    String city  // This will NOT be masked because parent has @ExcludeMaskMe
+    String city  // This will NOT be masked because the parent has @ExcludeMaskMe
 ) {}
 ```
 
@@ -492,7 +494,7 @@ public class UserController {
             User user = userService.findUserById(id);
             UserDto dto = userMapper.toDto(user);
             
-            // Apply masking if header is present
+            // Apply masking if the header is present
             if (maskInput != null && !maskInput.isBlank()) {
                 dto = MaskMeInitializer.mask(dto, MaskMeOnInput.class, maskInput);
             }
@@ -545,7 +547,6 @@ public class UserController {
     }
 }
 
-record ErrorResponse(String code, String message) {}
 ```
 
 ### Example 4: Logging Output

@@ -377,12 +377,14 @@ MaskMe is **framework-agnostic** by design. It doesn't cache condition instances
 
 ```java
 // MaskMe asks your framework: "Do you have an instance?"
-MaskMeConditionFactory.setFrameworkProvider(type -> {
-    return yourFramework.getInstance(type);  // Framework controls lifecycle
-});
+private void registerMaskConditionProvider() {
+    MaskMeConditionFactory.setFrameworkProvider(type -> {
+        return yourFramework.getInstance(type);  // Framework controls lifecycle
+    });
 
 // If no framework provider, falls back to reflection:
-new AlwaysMaskMeCondition()  // Creates new instance each time
+    new AlwaysMaskMeCondition();  // Creates a new instance each time
+}
 ```
 
 #### Without Framework Registration (Reflection)
@@ -411,9 +413,9 @@ public AlwaysMaskMeCondition alwaysMaskMeCondition() {
 
 **Benefits:**
 - ✅ Works with ANY framework (Spring, Quarkus, Guice, Pure Java)
-- ✅ Framework manages lifecycle (creation, destruction, scope)
-- ✅ No memory leaks (framework handles cleanup)
-- ✅ Thread-safe (framework handles synchronization)
+- ✅ A framework manages lifecycle (creation, destruction, scope)
+- ✅ No memory leaks (a framework handles cleanup)
+- ✅ Thread-safe (a framework handles synchronization)
 - ✅ You control singleton behavior
 
 **Alternative Would Be Worse:**

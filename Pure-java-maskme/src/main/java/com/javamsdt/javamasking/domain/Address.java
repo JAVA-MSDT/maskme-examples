@@ -6,8 +6,8 @@
  */
 package com.javamsdt.javamasking.domain;
 
-import com.javamsdt.maskme.api.annotation.MaskMe;
-import com.javamsdt.maskme.implementation.condition.AlwaysMaskMeCondition;
+import io.github.javamsdt.maskme.api.annotation.MaskMe;
+import io.github.javamsdt.maskme.implementation.condition.AlwaysMaskMeCondition;
 
 
 public class Address {

@@ -5,8 +5,8 @@ import com.javamsdt.javamasking.dto.UserDto;
 import com.javamsdt.javamasking.mapper.UserMapper;
 import com.javamsdt.javamasking.maskme.condition.PhoneMaskingCondition;
 import com.javamsdt.javamasking.service.UserService;
-import com.javamsdt.maskme.MaskMeInitializer;
-import com.javamsdt.maskme.implementation.condition.MaskMeOnInput;
+import io.github.javamsdt.maskme.MaskMeInitializer;
+import io.github.javamsdt.maskme.implementation.condition.MaskMeOnInput;
 
 import java.util.List;
 

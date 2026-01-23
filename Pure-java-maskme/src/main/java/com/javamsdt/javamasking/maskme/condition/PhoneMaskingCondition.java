@@ -7,7 +7,7 @@
 package com.javamsdt.javamasking.maskme.condition;
 
 import com.javamsdt.javamasking.service.UserService;
-import com.javamsdt.maskme.api.condition.MaskMeCondition;
+import io.github.javamsdt.maskme.api.condition.MaskMeCondition;
 
 /**
  * Custom masking condition that masks phone numbers based on runtime input

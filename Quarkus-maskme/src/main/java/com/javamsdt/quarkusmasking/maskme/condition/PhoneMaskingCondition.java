@@ -6,7 +6,7 @@
  */
 package com.javamsdt.quarkusmasking.maskme.condition;
 
-import com.javamsdt.maskme.api.condition.MaskMeCondition;
+import io.github.javamsdt.maskme.api.condition.MaskMeCondition;
 import com.javamsdt.quarkusmasking.service.UserService;
 import io.quarkus.arc.Unremovable;
 import jakarta.enterprise.context.ApplicationScoped;

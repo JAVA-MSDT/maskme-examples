@@ -7,7 +7,7 @@
 package com.javamsdt.masking.maskme.condition;
 
 import com.javamsdt.masking.service.UserService;
-import com.javamsdt.maskme.api.condition.MaskMeCondition;
+import io.github.javamsdt.maskme.api.condition.MaskMeCondition;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 

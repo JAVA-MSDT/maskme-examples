@@ -63,7 +63,7 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>com.javamsdt</groupId>
+            <groupId>io.github.java-msdt</groupId>
             <artifactId>maskme</artifactId>
             <version>1.0.0</version>
         </dependency>

@@ -6,10 +6,10 @@
  */
 package com.javamsdt.masking.domain;
 
-import com.javamsdt.maskme.api.annotation.ExcludeMaskMe;
-import com.javamsdt.maskme.api.annotation.MaskMe;
-import com.javamsdt.maskme.implementation.condition.AlwaysMaskMeCondition;
-import com.javamsdt.maskme.implementation.condition.MaskMeOnInput;
+import io.github.javamsdt.maskme.api.annotation.ExcludeMaskMe;
+import io.github.javamsdt.maskme.api.annotation.MaskMe;
+import io.github.javamsdt.maskme.implementation.condition.AlwaysMaskMeCondition;
+import io.github.javamsdt.maskme.implementation.condition.MaskMeOnInput;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;

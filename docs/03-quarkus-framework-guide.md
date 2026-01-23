@@ -445,14 +445,14 @@ Or use `reflection-config.json`:
 ```json
 [
   {
-    "name": "com.javamsdt.maskme.implementation.condition.AlwaysMaskMeCondition",
+    "name": "io.github.javamsdt.maskme.implementation.condition.AlwaysMaskMeCondition",
     "allDeclaredConstructors": true,
     "allPublicConstructors": true,
     "allDeclaredMethods": true,
     "allPublicMethods": true
   },
   {
-    "name": "com.javamsdt.maskme.implementation.condition.MaskMeOnInput",
+    "name": "io.github.javamsdt.maskme.implementation.condition.MaskMeOnInput",
     "allDeclaredConstructors": true,
     "allPublicConstructors": true,
     "allDeclaredMethods": true,

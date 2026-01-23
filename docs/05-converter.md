@@ -321,7 +321,7 @@ private void setupCustomConverters() {
 #### **Configuration Class**
 
 ```java
-import masking.api.com.javamsdt.maskme.api.processor.MaskMeProcessor;
+import masking.api.io.github.javamsdt.maskme.api.processor.MaskMeProcessor;
 import org.springframework.context.annotation.Bean;
 
 @Configuration
@@ -393,7 +393,7 @@ public class RequestScopeFilter implements Filter {
 #### **REST Controller Example**
 
 ```java
-import com.javamsdt.maskme.MaskMeInitializer;
+import io.github.javamsdt.maskme.MaskMeInitializer;
 @RestController
 @RequestMapping("/api/users")
 public class UserController {
@@ -427,7 +427,7 @@ public class UserController {
 #### **Command-Line Application**
 
 ```java
-import com.javamsdt.maskme.MaskMeInitializer;
+import io.github.javamsdt.maskme.MaskMeInitializer;
 
 public class CommandLineApp {
 
@@ -452,7 +452,7 @@ public class CommandLineApp {
 #### **Background Job Processing**
 
 ```java
-import com.javamsdt.maskme.MaskMeInitializer;
+import io.github.javamsdt.maskme.MaskMeInitializer;
 
 public class BackgroundJobService {
 
@@ -500,7 +500,7 @@ public class MaskingInitializer {
 #### **Quarkus REST Endpoint**
 
 ```java
-import com.javamsdt.maskme.MaskMeInitializer;
+import io.github.javamsdt.maskme.MaskMeInitializer;
 
 @Path("/users")
 @Produces(MediaType.APPLICATION_JSON)
@@ -539,7 +539,7 @@ public class UserResource {
 ### **JUnit 5 – Safe Test Isolation**
 
 ```java
-import com.javamsdt.maskme.MaskMeInitializer;
+import io.github.javamsdt.maskme.MaskMeInitializer;
 
 @ExtendWith(MockitoExtension.class)
 class UserServiceTest {
