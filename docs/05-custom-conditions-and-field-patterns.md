@@ -18,9 +18,10 @@ public interface MaskMeCondition {
      * @param input Runtime input passed from the processor
      */
     default void setInput(Object input) {
-        // Optional: Override if the condition needs runtime input
+        // Optional: Override if the condition needs runtime input.
+        // If not, use provided AlwaysMaskMeCondition provided by the library. 
     }
-    
+
     /**
      * Determines if a field should be masked
      * @param maskedFieldValue Current field value
@@ -52,7 +53,7 @@ public class MaskMeOnInput implements MaskMeCondition {
 
     private String input;
     private static final String EXPECTED_INPUT = "maskMe";
-    
+
     @Override
     public void setInput(Object input) {
         if (input instanceof String) {
@@ -62,7 +63,7 @@ public class MaskMeOnInput implements MaskMeCondition {
             logger.debug(() -> "Invalid input type: " + (input != null ? input.getClass().getSimpleName() : "null"));
         }
     }
-    
+
     @Override
     public boolean shouldMask(Object maskedFieldValue, Object objectContainingMaskedField) {
         boolean result = input != null && input.equalsIgnoreCase(EXPECTED_INPUT);
@@ -79,14 +80,14 @@ public class MaskMeOnInput implements MaskMeCondition {
 ```java
 public class EnvironmentBasedCondition implements MaskMeCondition {
     private String environment;
-    
+
     @Override
     public void setInput(Object input) {
         if (input instanceof String) {
             this.environment = (String) input;
         }
     }
-    
+
     @Override
     public boolean shouldMask(Object maskedFieldValue, Object objectContainingMaskedField) {
         return "production".equalsIgnoreCase(environment);
@@ -110,30 +111,30 @@ public class DummyController {
 ```java
 public class RoleBasedCondition implements MaskMeCondition {
     private String requiredRole;
-    
+
     @Override
     public void setInput(Object input) {
         if (input instanceof String) {
             this.requiredRole = (String) input;
         }
     }
-    
+
     @Override
     public boolean shouldMask(Object maskedFieldValue, Object objectContainingMaskedField) {
         // Get current user role from security context
         String currentUserRole = getCurrentUserRole();
         return !requiredRole.equals(currentUserRole);
     }
-    
+
     private String getCurrentUserRole() {
         // Implementation depends on your security framework
         return SecurityContextHolder.getContext()
-            .getAuthentication()
-            .getAuthorities()
-            .stream()
-            .findFirst()
-            .map(GrantedAuthority::getAuthority)
-            .orElse("USER");
+                .getAuthentication()
+                .getAuthorities()
+                .stream()
+                .findFirst()
+                .map(GrantedAuthority::getAuthority)
+                .orElse("USER");
     }
 }
 ```
@@ -143,12 +144,12 @@ public class RoleBasedCondition implements MaskMeCondition {
 ```java
 public class ValueBasedCondition implements MaskMeCondition {
     private Object thresholdValue;
-    
+
     @Override
     public void setInput(Object input) {
         this.thresholdValue = input;
     }
-    
+
     @Override
     public boolean shouldMask(Object maskedFieldValue, Object objectContainingMaskedField) {
         if (maskedFieldValue instanceof Number && thresholdValue instanceof Number) {
@@ -178,7 +179,7 @@ public class DummyController {
 public class TimeBasedCondition implements MaskMeCondition {
     private LocalTime startTime;
     private LocalTime endTime;
-    
+
     @Override
     public void setInput(Object input) {
         if (input instanceof String timeRange) {
@@ -189,7 +190,7 @@ public class TimeBasedCondition implements MaskMeCondition {
             }
         }
     }
-    
+
     @Override
     public boolean shouldMask(Object maskedFieldValue, Object objectContainingMaskedField) {
         LocalTime now = LocalTime.now();
@@ -208,24 +209,25 @@ public class DummyController {
 ### 5. Complex Business Logic Condition
 
 ```java
+
 @Component // Spring-managed for dependency injection
 public class BusinessRuleCondition implements MaskMeCondition {
-    
+
     @Autowired
     private UserService userService;
-    
+
     @Autowired
     private ConfigurationService configService;
-    
+
     private String ruleType;
-    
+
     @Override
     public void setInput(Object input) {
         if (input instanceof String) {
             this.ruleType = (String) input;
         }
     }
-    
+
     @Override
     public boolean shouldMask(Object maskedFieldValue, Object objectContainingMaskedField) {
         return switch (ruleType) {
@@ -235,14 +237,14 @@ public class BusinessRuleCondition implements MaskMeCondition {
             default -> false;
         };
     }
-    
+
     private boolean isGdprApplicable(Object objectContainingMaskedField) {
         if (objectContainingMaskedField instanceof UserDto user) {
             return userService.isEuResident(user.getId());
         }
         return false;
     }
-    
+
     private boolean hasUserConsent(Object objectContainingMaskedField) {
         if (objectContainingMaskedField instanceof UserDto user) {
             return userService.hasDataProcessingConsent(user.getId());
@@ -258,16 +260,17 @@ public class BusinessRuleCondition implements MaskMeCondition {
 
 ```java
 public record UserDto(
-    @MaskMe(conditions = {AlwaysMaskMeCondition.class}, maskValue = "{firstName}@masked.com")
-    String email,
-    
-    @MaskMe(conditions = {MaskMeOnInput.class}, maskValue = "{id}-{department}")
-    String displayName,
-    
-    String firstName,
-    Long id,
-    String department
-) {}
+        @MaskMe(conditions = {AlwaysMaskMeCondition.class}, maskValue = "{firstName}@masked.com")
+        String email,
+
+        @MaskMe(conditions = {MaskMeOnInput.class}, maskValue = "{id}-{department}")
+        String displayName,
+
+        String firstName,
+        Long id,
+        String department
+) {
+}
 ```
 
 ### Configuring Custom Patterns
@@ -275,9 +278,10 @@ public record UserDto(
 #### 1. Application Startup Configuration
 
 ```java
+
 @Configuration
 public class MaskMeConfiguration {
-    
+
     @PostConstruct
     public void configureFieldPattern() {
         // Set a custom pattern at application startup
@@ -336,38 +340,39 @@ public record UserDto(
 
 ```java
 public record EmployeeDto(
-    @MaskMe(conditions = {AlwaysMaskMeCondition.class}, 
-            maskValue = "{firstName}.{lastName}@{company}.com")
-    String email,
-    
-    @MaskMe(conditions = {MaskMeOnInput.class}, 
-            maskValue = "{department}-{id}-{level}")
-    String employeeCode,
-    
-    String firstName,
-    String lastName,
-    String company,
-    String department,
-    Long id,
-    String level
-) {}
+        @MaskMe(conditions = {AlwaysMaskMeCondition.class},
+                maskValue = "{firstName}.{lastName}@{company}.com")
+        String email,
+
+        @MaskMe(conditions = {MaskMeOnInput.class},
+                maskValue = "{department}-{id}-{level}")
+        String employeeCode,
+
+        String firstName,
+        String lastName,
+        String company,
+        String department,
+        Long id,
+        String level
+) {
+}
 ```
 
 #### 2. Nested Object Field References
 
 ```java
 public record OrderDto(
-    @MaskMe(conditions = {AlwaysMaskMeCondition.class}, 
-            maskValue = "Order-{id} for {customer}")
-    String description,
-    
-    Long id,
-    String customer,
-    AddressDto shippingAddress
-) {}
+        @MaskMe(conditions = {AlwaysMaskMeCondition.class},
+                maskValue = "Order-{id} for {customer}")
+        String description,
+
+        Long id,
+        String customer,
+        AddressDto shippingAddress
+) {
+}
 
 // Field references work within the same object level
-// For nested object access, use custom converters
 ```
 
 ## 🎯 Best Practices
@@ -387,10 +392,10 @@ public class AdminOnlyCondition implements MaskMeCondition {
 public class ComplexCondition implements MaskMeCondition {
     @Override
     public boolean shouldMask(Object maskedFieldValue, Object objectContainingMaskedField) {
-        return !isCurrentUserAdmin() && 
-               isProductionEnvironment() && 
-               isBusinessHours() && 
-               hasGdprRequirement();
+        return !isCurrentUserAdmin() &&
+                isProductionEnvironment() &&
+                isBusinessHours() &&
+                hasGdprRequirement();
     }
 }
 ```
@@ -400,7 +405,7 @@ public class ComplexCondition implements MaskMeCondition {
 ```java
 public class SafeCondition implements MaskMeCondition {
     private String requiredValue;
-    
+
     @Override
     public void setInput(Object input) {
         // Always validate input
@@ -408,7 +413,7 @@ public class SafeCondition implements MaskMeCondition {
             this.requiredValue = ((String) input).trim().toLowerCase();
         }
     }
-    
+
     @Override
     public boolean shouldMask(Object maskedFieldValue, Object objectContainingMaskedField) {
         return requiredValue != null && requiredValue.equals("mask");
@@ -422,13 +427,13 @@ public class SafeCondition implements MaskMeCondition {
 // Spring Integration
 @Component
 public class SpringManagedCondition implements MaskMeCondition {
-    
+
     @Autowired
     private SecurityService securityService;
-    
+
     @Value("${app.masking.enabled:true}")
     private boolean maskingEnabled;
-    
+
     @Override
     public boolean shouldMask(Object maskedFieldValue, Object objectContainingMaskedField) {
         return maskingEnabled && !securityService.hasAdminRole();
@@ -446,34 +451,17 @@ public SpringManagedCondition springManagedCondition() {
 
 **Why Register Conditions as Singletons:**
 
-MaskMe is **framework-agnostic** by design. It doesn't cache condition instances internally, giving you full control over lifecycle management.
-
-```java
-// Without registration (Reflection - Creates New Instances)
-@MaskMe(conditions = {AlwaysMaskMeCondition.class}) String field1;  // New instance #1
-@MaskMe(conditions = {AlwaysMaskMeCondition.class}) String field2;  // New instance #2
-@MaskMe(conditions = {AlwaysMaskMeCondition.class}) String field3;  // New instance #3
-// Result: 3 separate instances via reflection
-
-// With registration (Singleton - Reuses Same Instance)
-@Bean  // Spring
-public AlwaysMaskMeCondition alwaysMaskMeCondition() {
-    return new AlwaysMaskMeCondition();  // Created once
-}
-
-@MaskMe(conditions = {AlwaysMaskMeCondition.class}) String field1;  // Same instance
-@MaskMe(conditions = {AlwaysMaskMeCondition.class}) String field2;  // Same instance
-@MaskMe(conditions = {AlwaysMaskMeCondition.class}) String field3;  // Same instance
-// Result: 1 singleton reused 3 times
-```
+MaskMe is **framework-agnostic** and doesn't cache condition instances internally. You control the lifecycle via your
+framework.
 
 **Benefits:**
+
 - ✅ Memory efficient – One instance instead of many
 - ✅ Better performance – No reflection overhead
-- ✅ A framework manages lifecycle (creation, destruction, scope)
+- ✅ Framework manages lifecycle
 - ✅ Required for conditions with dependencies
 
-**Conclusion:** Not a limitation—it's a design decision that keeps the library lightweight, framework-agnostic, and delegates lifecycle management to frameworks.
+**📖 See [Design Philosophy](../readME.md#-design-philosophy) for a detailed explanation.**
 
 ### 5. Performance Considerations
 
@@ -481,13 +469,13 @@ public AlwaysMaskMeCondition alwaysMaskMeCondition() {
 public class OptimizedCondition implements MaskMeCondition {
     private static final String ADMIN_ROLE = "ADMIN";
     private String userRole;
-    
+
     @Override
     public void setInput(Object input) {
         // Cache expensive operations in setInput
         this.userRole = getCurrentUserRole();
     }
-    
+
     @Override
     public boolean shouldMask(Object maskedFieldValue, Object objectContainingMaskedField) {
         // Fast comparison in shouldMask
@@ -501,15 +489,16 @@ public class OptimizedCondition implements MaskMeCondition {
 ### Unit Testing
 
 ```java
+
 @Test
 void testRoleBasedCondition() {
     // Given
     RoleBasedCondition condition = new RoleBasedCondition();
     condition.setInput("ADMIN");
-    
+
     // When
     boolean shouldMask = condition.shouldMask("sensitive", new UserDto());
-    
+
     // Then
     assertThat(shouldMask).isFalse(); // Admin should not be masked
 }
@@ -518,10 +507,10 @@ void testRoleBasedCondition() {
 void testFieldReferencePattern() {
     // Given
     UserDto user = new UserDto("Ahmed", "Ahmed@email.com");
-    
+
     // When
     UserDto masked = MaskMeInitializer.mask(user);
-    
+
     // Then
     assertThat(masked.email()).isEqualTo("Ahmed@masked.com");
 }
@@ -530,19 +519,20 @@ void testFieldReferencePattern() {
 ### Integration Testing
 
 ```java
+
 @SpringBootTest
 class CustomConditionIntegrationTest {
-    
+
     @Test
     @WithMockUser(roles = "USER")
     void testSpringSecurityIntegration() {
         // Given
         UserDto dto = new UserDto("sensitive data");
-        
+
         // When
-        UserDto masked = MaskMeInitializer.mask(dto, 
-            SpringSecurityCondition.class, "ADMIN");
-        
+        UserDto masked = MaskMeInitializer.mask(dto,
+                SpringSecurityCondition.class, "ADMIN");
+
         // Then
         assertThat(masked.data()).isEqualTo("***"); // Masked for non-admin
     }
@@ -557,7 +547,7 @@ class CustomConditionIntegrationTest {
 // ❌ Not thread-safe
 public class UnsafeCondition implements MaskMeCondition {
     private static String globalInput; // Shared state
-    
+
     @Override
     public void setInput(Object input) {
         globalInput = (String) input; // Race condition
@@ -567,7 +557,7 @@ public class UnsafeCondition implements MaskMeCondition {
 // ✅ Thread-safe
 public class SafeCondition implements MaskMeCondition {
     private String instanceInput; // Instance state
-    
+
     @Override
     public void setInput(Object input) {
         this.instanceInput = (String) input; // Safe
@@ -579,14 +569,9 @@ public class SafeCondition implements MaskMeCondition {
 
 ```java
 // ❌ Cannot reference nested object fields directly
-@MaskMe(conditions = {AlwaysMaskMeCondition.class}, 
+@MaskMe(conditions = {AlwaysMaskMeCondition.class},
         maskValue = "{address.street}") // Won't work
-String description;
-
-// ✅ Use custom converter for complex references
-@MaskMe(conditions = {AlwaysMaskMeCondition.class}, 
-        maskValue = "CUSTOM_LOGIC")
-String description;
+        String description;
 ```
 
 ### 3. Input Type Safety

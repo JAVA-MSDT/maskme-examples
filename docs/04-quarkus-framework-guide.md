@@ -1,5 +1,7 @@
 # Quarkus Framework Integration Guide
 
+- [Full quarkus guide project](https://github.com/JAVA-MSDT/MaskMe-Guide/tree/main/Quarkus-maskme)
+
 ## 📋 Overview
 
 - This guide demonstrates how to integrate the MaskMe library with Quarkus applications.
@@ -12,20 +14,18 @@
 Configure MaskMe with Quarkus CDI for dependency injection support:
 
 ```java
+
 @ApplicationScoped
 public class MaskingConfiguration {
-
-    @Inject
-    BeanManager beanManager;
 
     @PostConstruct
     public void setupMaskMe() {
         // Register framework provider for CDI support
         registerFrameworkProvider();
-        
+
         // Configure a custom field regex pattern (optional)
         configureFieldPattern();
-        
+
         // Clear and register custom converters
         setupCustomConverters();
     }
@@ -35,16 +35,9 @@ public class MaskingConfiguration {
             @Override
             public <T> T getInstance(Class<T> type) {
                 try {
-                    Set<Bean<?>> beans = beanManager.getBeans(type);
-                    if (beans.isEmpty()) {
-                        return null;
-                    }
-                    Bean<?> bean = beanManager.resolve(beans);
-                    CreationalContext<?> context = beanManager.createCreationalContext(bean);
-                    return (T) beanManager.getReference(bean, type, context);
+                    return CDI.current().select(type).get();
                 } catch (Exception e) {
-                    Log.warnf("Failed to get CDI bean of type %s", type.getName());
-                    throw new MaskMeException("Failed to get CDI bean: " + type.getName(), e);
+                    return null; // Let the library fall back to reflection
                 }
             }
         });
@@ -53,16 +46,18 @@ public class MaskingConfiguration {
     // Declare built-in conditions as beans to avoid NoSuchBeanDefinitionException, because the library is pure java.
     @Produces
     @ApplicationScoped
+    @Unremovable  // CRITICAL: Prevents Quarkus from removing unused beans
     public AlwaysMaskMeCondition alwaysMaskMeCondition() {
         return new AlwaysMaskMeCondition();
     }
 
     @Produces
     @ApplicationScoped
+    @Unremovable  // CRITICAL: Prevents Quarkus from removing unused beans
     public MaskMeOnInput maskMeOnInput() {
         return new MaskMeOnInput();
     }
-    
+
     private void configureFieldPattern() {
         // Optional: Configure a custom field reference pattern
         MaskMeFieldAccessUtil.setUserPattern(Pattern.compile("\\{([^}]+)\\}"));
@@ -81,29 +76,52 @@ public class MaskingConfiguration {
 }
 ```
 
+### ⚠️ Critical: Why @Unremovable is Required
+
+**Quarkus removes "unused" beans at build time** for optimization. MaskMe looks up beans programmatically, so Quarkus
+doesn't see this as "usage."
+
+**Quick Summary:**
+
+- ✅ **Memory efficient** – One instance instead of many
+- ✅ **Better performance** – No reflection overhead
+- ✅ **Prevents build errors** – Avoids "bean not found" at runtime
+- ✅ **Required for custom conditions** – Enables dependency injection
+
+**📖 See [Design Philosophy](../readME.md#-design-philosophy) for a detailed explanation.**
+
+**Why @Unremovable?**
+
+- Quarkus performs build-time optimization and removes "unused" beans
+- MaskMe looks up beans via `CDI.current().select(type).get()` (programmatic lookup)
+- Quarkus doesn't see this as "usage" → removes the bean
+- `@Unremovable` tells Quarkus: "Keep this bean even if it looks unused"
+
 ### Step 2: Custom Conditions with CDI
 
 Create CDI-managed conditions with dependency injection:
 
 ```java
+
 @ApplicationScoped
+@Unremovable  // Prevents Quarkus from removing this bean
 public class RoleBasedMaskCondition implements MaskMeCondition {
-    
+
     @Inject
     UserService userService;
-    
+
     @Inject
     SecurityIdentity securityIdentity;
-    
+
     private String requiredRole;
-    
+
     @Override
     public void setInput(Object input) {
         if (input instanceof String) {
             this.requiredRole = (String) input;
         }
     }
-    
+
     @Override
     public boolean shouldMask(Object maskedFieldValue, Object objectContainingMaskedField) {
         return !securityIdentity.hasRole(requiredRole);
@@ -112,22 +130,22 @@ public class RoleBasedMaskCondition implements MaskMeCondition {
 
 @ApplicationScoped
 public class ConfigBasedCondition implements MaskMeCondition {
-    
+
     @ConfigProperty(name = "app.masking.enabled", defaultValue = "true")
     boolean maskingEnabled;
-    
+
     @ConfigProperty(name = "app.environment", defaultValue = "prod")
     String environment;
-    
+
     private String targetEnvironment;
-    
+
     @Override
     public void setInput(Object input) {
         if (input instanceof String) {
             this.targetEnvironment = (String) input;
         }
     }
-    
+
     @Override
     public boolean shouldMask(Object maskedFieldValue, Object objectContainingMaskedField) {
         return maskingEnabled && environment.equals(targetEnvironment);
@@ -140,17 +158,20 @@ public class ConfigBasedCondition implements MaskMeCondition {
 Declare built-in conditions as CDI beans:
 
 ```java
+
 @ApplicationScoped
 public class MaskingConditionProducer {
-    
+
     @Produces
     @ApplicationScoped
+    @Unremovable  // CRITICAL: Prevents Quarkus from removing unused beans
     public AlwaysMaskMeCondition alwaysMaskMeCondition() {
         return new AlwaysMaskMeCondition();
     }
-    
+
     @Produces
     @ApplicationScoped
+    @Unremovable  // CRITICAL: Prevents Quarkus from removing unused beans
     public MaskMeOnInput maskMeOnInput() {
         return new MaskMeOnInput();
     }
@@ -162,31 +183,32 @@ public class MaskingConditionProducer {
 Use Quarkus configuration for MaskMe settings:
 
 ```java
+
 @ConfigMapping(prefix = "maskme")
 public interface MaskMeConfig {
-    
+
     @WithDefault("true")
     boolean enabled();
-    
+
     @WithDefault("***")
     String defaultMaskValue();
-    
+
     @WithDefault("CURLY_BRACES")
     FieldPattern fieldPattern();
-    
+
     Map<String, String> customMasks();
-    
+
     enum FieldPattern {
         CURLY_BRACES("\\{([^}]+)\\}"),
         SQUARE_BRACKETS("\\[([^]]+)]"),
         PARENTHESES("\\(([^)]+)\\)");
-        
+
         private final String pattern;
-        
+
         FieldPattern(String pattern) {
             this.pattern = pattern;
         }
-        
+
         public Pattern getCompiledPattern() {
             return Pattern.compile(pattern);
         }
@@ -195,10 +217,10 @@ public interface MaskMeConfig {
 
 @ApplicationScoped
 public class MaskMeConfigurationService {
-    
+
     @Inject
     MaskMeConfig config;
-    
+
     @PostConstruct
     public void configure() {
         if (config.enabled()) {
@@ -213,12 +235,13 @@ public class MaskMeConfigurationService {
 Configure custom field reference patterns:
 
 ```java
+
 @ApplicationScoped
 public class FieldPatternConfiguration {
-    
+
     @ConfigProperty(name = "maskme.field.pattern", defaultValue = "CURLY_BRACES")
     String patternType;
-    
+
     @PostConstruct
     public void configureFieldPattern() {
         Pattern pattern = switch (patternType) {
@@ -226,7 +249,7 @@ public class FieldPatternConfiguration {
             case "PARENTHESES" -> Pattern.compile("\\(([^)]+)\\)");
             default -> Pattern.compile("\\{([^}]+)\\}");
         };
-        
+
         MaskMeFieldAccessUtil.setUserPattern(pattern);
     }
 }
@@ -237,34 +260,35 @@ public class FieldPatternConfiguration {
 Implement Quarkus-aware custom converters:
 
 ```java
+
 @ApplicationScoped
 public class QuarkusEmailConverter implements MaskMeConverter {
-    
+
     @Inject
     MaskMeConfig config;
-    
+
     @Override
     public int getPriority() {
         return 10; // Higher than defaults
     }
-    
+
     @Override
     public boolean canConvert(Class<?> type) {
         return String.class.equals(type);
     }
-    
+
     @Override
-    public Object convert(String maskValue, Class<?> targetType, Object originalValue, 
-                         Object objectContainingMaskedField, String maskedFieldName) {
-        
+    public Object convert(String maskValue, Class<?> targetType, Object originalValue,
+                          Object objectContainingMaskedField, String maskedFieldName) {
+
         String processedValue = MaskMeFieldAccessUtil
-            .getMaskedValueFromAnotherFieldOrMaskedValue(maskValue, objectContainingMaskedField);
-        
+                .getMaskedValueFromAnotherFieldOrMaskedValue(maskValue, objectContainingMaskedField);
+
         if (fieldName.toLowerCase().contains("email")) {
             String customMask = config.customMasks().get("email");
             return customMask != null ? customMask.replace("{value}", processedValue) : processedValue;
         }
-        
+
         return processedValue;
     }
 }
@@ -275,39 +299,40 @@ public class QuarkusEmailConverter implements MaskMeConverter {
 ### Using MaskMeInitializer (Recommended)
 
 ```java
+
 @Path("/api/users")
 @ApplicationScoped
 public class UserResource {
-    
+
     @Inject
     UserService userService;
-    
+
     @Inject
     UserMapper userMapper;
-    
+
     @GET
     @Path("/{id}")
     @Produces(MediaType.APPLICATION_JSON)
     public UserDto getUser(@PathParam("id") Long id,
-                          @HeaderParam("X-Mask-Level") @DefaultValue("none") String maskLevel) {
-        
+                           @HeaderParam("X-Mask-Level") @DefaultValue("none") String maskLevel) {
+
         User user = userService.findById(id);
         UserDto dto = userMapper.toDto(user);
-        
+
         return MaskMeInitializer.mask(dto,
-            MaskMeOnInput.class, maskLevel,
-            RoleBasedMaskCondition.class, "ADMIN"
+                MaskMeOnInput.class, maskLevel,
+                RoleBasedMaskCondition.class, "ADMIN"
         );
     }
-    
+
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     public List<UserDto> getUsers(@HeaderParam("X-Environment") @DefaultValue("prod") String env) {
-        
+
         return userService.findAll().stream()
-            .map(userMapper::toDto)
-            .map(dto -> MaskMeInitializer.mask(dto, ConfigBasedCondition.class, env))
-            .toList();
+                .map(userMapper::toDto)
+                .map(dto -> MaskMeInitializer.mask(dto, ConfigBasedCondition.class, env))
+                .toList();
     }
 }
 ```
@@ -315,28 +340,29 @@ public class UserResource {
 ### Using MaskMeProcessor with CDI
 
 ```java
+
 @Path("/api/users")
 @ApplicationScoped
 public class UserResource {
-    
+
     @Inject
     UserService userService;
-    
+
     @Inject
     MaskMeProcessor maskProcessor;
-    
+
     @GET
     @Path("/{id}/detailed")
     @Produces(MediaType.APPLICATION_JSON)
     public UserDto getDetailedUser(@PathParam("id") Long id,
-                                  @QueryParam("maskSensitive") @DefaultValue("false") boolean maskSensitive) {
-        
+                                   @QueryParam("maskSensitive") @DefaultValue("false") boolean maskSensitive) {
+
         try {
             maskProcessor.setConditionInput(MaskMeOnInput.class, maskSensitive ? "maskMe" : "none");
-            
+
             User user = userService.findById(id);
             UserDto dto = userMapper.toDto(user);
-            
+
             return maskProcessor.process(dto);
         } finally {
             maskProcessor.clearInputs();
@@ -350,22 +376,23 @@ public class UserResource {
 ### Request-Scoped Converters with JAX-RS
 
 ```java
+
 @Path("/api/advanced")
 @ApplicationScoped
 public class AdvancedMaskingResource {
-    
+
     @Inject
     UserService userService;
-    
+
     @GET
     @Path("/users/{id}/custom-mask")
     @Produces(MediaType.APPLICATION_JSON)
     public UserDto getUserWithCustomMask(@PathParam("id") Long id,
-                                        @HeaderParam("X-Mask-Pattern") String pattern) {
-        
+                                         @HeaderParam("X-Mask-Pattern") String pattern) {
+
         // Register request-scoped converter
         MaskMeConverterRegistry.registerRequestScoped(new CustomPatternConverter(pattern));
-        
+
         try {
             User user = userService.findById(id);
             return MaskMeInitializer.mask(userMapper.toDto(user));
@@ -379,30 +406,31 @@ public class AdvancedMaskingResource {
 ### Quarkus Security Integration
 
 ```java
+
 @ApplicationScoped
 public class SecurityAwareMaskCondition implements MaskMeCondition {
-    
+
     @Inject
     SecurityIdentity securityIdentity;
-    
+
     @Inject
     JsonWebToken jwt;
-    
+
     private String requiredRole;
-    
+
     @Override
     public void setInput(Object input) {
         if (input instanceof String) {
             this.requiredRole = (String) input;
         }
     }
-    
+
     @Override
     public boolean shouldMask(Object maskedFieldValue, Object objectContainingMaskedField) {
         if (securityIdentity.isAnonymous()) {
             return true; // Mask for anonymous users
         }
-        
+
         return !securityIdentity.hasRole(requiredRole);
     }
 }
@@ -411,7 +439,7 @@ public class SecurityAwareMaskCondition implements MaskMeCondition {
 @Path("/secure")
 @ApplicationScoped
 public class SecureResource {
-    
+
     @GET
     @Path("/{id}")
     @RolesAllowed("USER")
@@ -419,7 +447,7 @@ public class SecureResource {
     public UserDto getSecureUser(@PathParam("id") Long id) {
         User user = userService.findById(id);
         UserDto dto = userMapper.toDto(user);
-        
+
         return MaskMeInitializer.mask(dto, SecurityAwareMaskCondition.class, "ADMIN");
     }
 }
@@ -430,11 +458,12 @@ public class SecureResource {
 For GraalVM native compilation, register reflection classes:
 
 ```java
+
 @RegisterForReflection({
-    AlwaysMaskMeCondition.class,
-    MaskMeOnInput.class,
-    RoleBasedMaskCondition.class,
-    ConfigBasedCondition.class
+        AlwaysMaskMeCondition.class,
+        MaskMeOnInput.class,
+        RoleBasedMaskCondition.class,
+        ConfigBasedCondition.class
 })
 public class ReflectionConfiguration {
 }
@@ -445,14 +474,14 @@ Or use `reflection-config.json`:
 ```json
 [
   {
-    "name": "io.github.javamsdt.maskme.implementation.condition.AlwaysMaskMeCondition",
+    "name": "condition.implementation.io.github.javamsdt.maskme.AlwaysMaskMeCondition",
     "allDeclaredConstructors": true,
     "allPublicConstructors": true,
     "allDeclaredMethods": true,
     "allPublicMethods": true
   },
   {
-    "name": "io.github.javamsdt.maskme.implementation.condition.MaskMeOnInput",
+    "name": "condition.implementation.io.github.javamsdt.maskme.MaskMeOnInput",
     "allDeclaredConstructors": true,
     "allPublicConstructors": true,
     "allDeclaredMethods": true,
@@ -466,21 +495,18 @@ Or use `reflection-config.json`:
 ### application.properties
 
 ```properties
-# MaskMe Configuration, this is a custom configuration and not refrecincing anything in the library,
+# MaskMe Configuration, this is a custom configuration and not referencing anything in the library,
 # they are used by you when you configure your application.
 maskme.enabled=true
 maskme.default-mask-value=***
 maskme.field.pattern=CURLY_BRACES
-
 # Custom mask patterns
 maskme.custom-masks.email={value}@masked.com
 maskme.custom-masks.phone=***-***-****
-
 # Environment-specific settings
 %dev.maskme.enabled=false
 %test.maskme.enabled=true
 %prod.maskme.enabled=true
-
 # Application settings
 app.masking.enabled=true
 app.environment=prod
@@ -520,13 +546,37 @@ app:
 
 ### Unit Testing
 
+### Writing Your Own Tests
+
 ```java
+
+@QuarkusTest
+class MyMaskingTest {
+
+    @Test
+    void testCustomMasking() {
+        UserDto dto = given()
+                .header("Your-Header", "value")
+                .when()
+                .get("/your-endpoint")
+                .then()
+                .statusCode(200)
+                .extract()
+                .as(UserDto.class);
+
+        assertThat(dto.maskedField()).isEqualTo("expected-masked-value");
+    }
+}
+```
+
+```java
+
 @QuarkusTest
 class MaskingIntegrationTest {
-    
+
     @Inject
     UserService userService;
-    
+
     @TestConfigProperty(name = "maskme.enabled", value = "true")
     @TestConfigProperty(name = "maskme.default-mask-value", value = "TEST_MASK")
     @Test
@@ -534,23 +584,23 @@ class MaskingIntegrationTest {
         // Given
         User user = createTestUser();
         UserDto dto = userMapper.toDto(user);
-        
+
         // When
         UserDto masked = MaskMeInitializer.mask(dto, MaskMeOnInput.class, "maskMe");
-        
+
         // Then
         assertThat(masked.password()).isEqualTo("****");
         assertThat(masked.email()).contains("@masked.com");
     }
-    
+
     @Test
     void testCustomConditionWithCDI() {
         // Given
         UserDto dto = createTestDto();
-        
+
         // When
         UserDto masked = MaskMeInitializer.mask(dto, RoleBasedMaskCondition.class, "USER");
-        
+
         // Then
         assertThat(masked.ssn()).isEqualTo("***-**-****");
     }
@@ -560,30 +610,31 @@ class MaskingIntegrationTest {
 ### Integration Testing
 
 ```java
+
 @QuarkusTest
 class UserResourceTest {
-    
+
     @Test
     void testMaskedEndpoint() {
         given()
-            .header("X-Mask-Level", "maskMe")
-        .when()
-            .get("/api/users/1")
-        .then()
-            .statusCode(200)
-            .body("password", equalTo("****"))
-            .body("email", containsString("@masked.com"));
+                .header("X-Mask-Level", "maskMe")
+                .when()
+                .get("/api/users/1")
+                .then()
+                .statusCode(200)
+                .body("password", equalTo("****"))
+                .body("email", containsString("@masked.com"));
     }
-    
+
     @Test
     @TestSecurity(user = "admin", roles = "ADMIN")
     void testSecureEndpointWithAdmin() {
         given()
-        .when()
-            .get("/secure/1")
-        .then()
-            .statusCode(200)
-            .body("ssn", not(equalTo("***-**-****"))); // Not masked for admin
+                .when()
+                .get("/secure/1")
+                .then()
+                .statusCode(200)
+                .body("ssn", not(equalTo("***-**-****"))); // Not masked for admin
     }
 }
 ```
@@ -591,6 +642,7 @@ class UserResourceTest {
 ### Native Testing
 
 ```java
+
 @QuarkusIntegrationTest
 class NativeMaskingIT extends MaskingIntegrationTest {
     // Tests run in native mode
@@ -649,8 +701,8 @@ public AlwaysMaskMeCondition alwaysMaskMeCondition() {
 // Problem: Reflection not configured for native
 // Solution: Register classes for reflection
 @RegisterForReflection({
-    AlwaysMaskMeCondition.class,
-    MaskMeOnInput.class
+        AlwaysMaskMeCondition.class,
+        MaskMeOnInput.class
 })
 public class ReflectionConfiguration {
 }

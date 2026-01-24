@@ -1,10 +1,9 @@
-# **MaskMe-Guide** and use cases for **MaskMe** field masking library
+# MaskMe - Field Masking Library
 
 ## 📋 Overview
 
-MaskMe is a modern, annotation-based Java library for dynamically masking sensitive data in objects returned when
-calling HTTP GET. It supports both regular Java classes and Java Records, with conditional masking based on runtime
-inputs and framework integration.
+MaskMe is a modern, annotation-based Java library for dynamically masking sensitive data in objects. It supports both
+regular Java **classes** and Java **Records**, with conditional masking based on runtime inputs and framework integration.
 
 ## 🚀 Key Features
 
@@ -26,7 +25,7 @@ inputs and framework integration.
 ```xml
 
 <dependency>
-    <groupId>com.javamsdt</groupId>
+    <groupId>io.github.java-msdt</groupId>
     <artifactId>maskme</artifactId>
     <version>1.0.0</version>
 </dependency>
@@ -35,12 +34,16 @@ inputs and framework integration.
 ### Gradle
 
 ```groovy
-implementation 'com.javamsdt:maskme:1.0.0'
+implementation 'io.github.java-msdt:maskme:1.0.0'
 ```
 
-## 🚀 Quick Start
+## 🚀 5-Minute Quick Start
 
-### 1. Annotate Your Data
+### Step 1: Add Dependency
+
+See [Installation](#-installation) above.
+
+### Step 2: Annotate Your Data
 
 ```java
 public record UserDto(
@@ -55,7 +58,7 @@ public record UserDto(
 }
 ```
 
-### 2. Use in Your Application
+### Step 3: Use in Your Application
 
 ```java
 
@@ -64,7 +67,7 @@ public class UserController {
 
     @GetMapping("/user/{id}")
     public UserDto getUser(@PathVariable Long id,
-                           @RequestHeader("X-Mask-Level") String maskLevel) {
+                           @RequestHeader("X-Mask-Level") String maskLevel) { // header should be maskMe to trigger masking.
 
         UserDto dto = userService.getUserDto(id);
         return MaskMeInitializer.mask(dto, MaskMeOnInput.class, maskLevel);
@@ -72,9 +75,76 @@ public class UserController {
 }
 ```
 
+### Step 4: Configure Your Framework (Optional)
+
+For production use with dependency injection, see:
+
+- [Pure java Setup](docs/02-pure-java-guide.md#step-1-framework-configuration)
+- [Spring Setup](docs/03-spring-framework-guide.md#step-1-framework-configuration)
+- [Quarkus Setup](docs/04-quarkus-framework-guide.md#step-1-framework-configuration)
+
+✅ **Done!** You're now masking sensitive data.
+
+---
+
+## 🤔 Which Guide Do I Need?
+
+```
+                    Start Here
+                        │
+        ┌───────────────┼───────────────┐
+        │               │               │
+    Using Spring?   Using Quarkus?   Pure Java?
+        │               │               │
+        ▼               ▼               ▼
+   Spring Guide    Quarkus Guide    Pure Java Guide
+        │               │               │
+        └───────────────┴───────────────┘
+                        │
+            Need Custom Logic?
+                        │
+        ┌───────────────┼───────────────┐
+        │                               │
+   Custom Conditions              Custom Converters
+        │                               │
+   Conditions Guide               Converter Guide
+```
+
 ## 📚 Documentation
 
-### 🔧 **Logging Configuration**
+### 🚀 Getting Started
+
+- **[Quick Start](#-5-minute-quick-start)** – Get running in 5 minutes
+- **[Pure Java Setup](docs/02-pure-java-guide.md#step-1-framework-configuration)** - Manual configuration
+- **[Spring Setup](docs/03-spring-framework-guide.md)** – @Bean registration, Security integration
+- **[Quarkus Setup](docs/04-quarkus-framework-guide.md)** - @Produces + @Unremovable, Native compilation
+
+### 📖 Core Concepts
+
+- **[Custom Conditions](docs/05-custom-conditions-and-field-patterns.md)** - Role-based, time-based, business logic
+- **[Custom Converters](docs/06-converter.md)** – Type conversion, scoped converters
+- **[Field Patterns](docs/05-custom-conditions-and-field-patterns.md#-field-reference-patterns)** – Dynamic field referencing
+- **[Logging Configuration](#-logging-configuration)** - Debug and monitor masking operations
+
+### 🏗️ Advanced Topics
+
+- **[Library Architecture](docs/01-library-internal-architecture.md)** – Internal design, extension points
+- **[Design Philosophy](#-design-philosophy)** – Why conditions aren't cached
+- **[Testing Strategies](docs/03-spring-framework-guide.md#-testing-with-spring)** - Unit and integration tests
+
+### 📦 Example Projects
+
+- [Pure Java Examples](Pure-java-maskme)
+- [Spring Framework Examples](Spring-maskme)
+- [Quarkus Framework Examples](Quarkus-maskme)
+- **[Library Source Code](https://github.com/JAVA-MSDT/maskme)**
+
+---
+
+## 🔧 Logging Configuration
+
+MaskMe includes zero-overhead logging disabled by default for production performance. Enable it for debugging and
+monitoring.
 
 MaskMe includes zero-overhead logging disabled by default for production performance. Enable it for debugging and
 monitoring.
@@ -142,34 +212,9 @@ class ApplicationStartup {
     - eg,
       `2026-01-10T16:57:01.222+02:00  INFO 29836 --- [masking] [nio-9090-exec-3] c.j.m.i.condition.MaskMeOnInput: [DEBUGGING] Input set to: maskMe`
 
-### 🔧 **Core Concepts**
+---
 
-- **Conditions**: Control when fields should be masked.
-- **Converters**: Handle type conversion for mask values.
-- **Field References**: Use `{fieldName}` to reference other field values.
-- **Framework Integration**: Leverage dependency injection in Spring/Quarkus.
-- **Thread Safety**: Built-in ThreadLocal management.
-
-### 📖 Projects Guide and use cases
-
-- [Library Sourcecode](https://github.com/JAVA-MSDT/maskme)
-- [Spring Framework Integration Guide](/Spring-maskme)
-- [Quarkus Framework Integration Guide](/Quarkus-maskme)
-- [Pure Java Integration Guide](/Pure-java-maskme)
-
-| Guide                                                                                         | Description                                                         |
-|-----------------------------------------------------------------------------------------------|---------------------------------------------------------------------|
-| **01. [Library Architecture](docs/01-library-internal-architecture.md)**                      | Technical details about internal structure and design patterns.     |
-| **02. [Spring Framework Integration](docs/02-spring-framework-guide.md)**                     | Complete Spring Boot setup, configuration, and usage examples.      |
-| **03. [Quarkus Framework Integration](docs/03-quarkus-framework-guide.md)**                   | CDI integration, native compilation, and Quarkus-specific features. |
-| **04. [Custom Conditions & Field Patterns](docs/04-custom-conditions-and-field-patterns.md)** | Creating custom masking conditions and configuring field patterns.  |
-| **05. [Custom Converters](docs/05-converter.md)**                                             | Creating and using custom type converters for advanced masking.     |
-
-**Note:** Code duplication across Spring, Quarkus, and Pure Java projects is intentional. Each project is a
-self-contained, fully working example that can be used independently without requiring other guides or modules. This
-design allows developers to focus on their specific framework of interest.
-
-### ⚡ **Quick Examples**
+## ⚡ Quick Examples
 
 #### Basic Masking
 
@@ -198,6 +243,8 @@ String email; // Results in "Ahmed@company.com" if the firstName is "Ahmed"
 @MaskMe(conditions = {RoleBasedCondition.class, EnvironmentCondition.class})
 String data; // Masked if ANY condition returns true
 ```
+
+---
 
 ## 🏗️ Design Philosophy
 
@@ -272,17 +319,41 @@ If MaskMe cached internally, it would need to:
 **Conclusion:** Not a limitation—it's a design decision that keeps the library lightweight, framework-agnostic, and
 delegates lifecycle management to frameworks (their job).
 
-## 📂 Project Structure
+---
 
-This repository contains three complete, self-contained example projects:
+## 📝 Best Practices
 
-- **Spring-maskme**: Spring Boot integration with dependency injection
-- **Quarkus-maskme**: Quarkus CDI integration with native compilation support
-- **Pure-java-maskme**: Framework-free implementation with manual dependency management
+### 1. Startup Configuration
 
-Each project includes identical domain models, DTOs, and custom converters to demonstrate the same masking scenarios
-across different frameworks. This intentional duplication ensures each example is complete and runnable without external
-dependencies.
+- Configure a framework provider once at application startup
+- Clear global converters to prevent memory leaks
+- Register custom converters after clearing globals
+
+### 2. Bean Management
+
+- Declare built-in conditions as framework beans (Spring @Bean, Quarkus @Produces)
+- Use dependency injection for custom conditions
+- Leverage framework configuration properties
+
+### 3. Controller Design
+
+- Use `MaskMeInitializer` for automatic cleanup
+- Handle request headers for dynamic masking
+- Implement proper error handling
+
+### 4. Memory Management
+
+- Use framework lifecycle hooks (@PreDestroy) to clear global converters
+- Clear request-scoped converters in finally blocks
+- Avoid memory leaks with proper ThreadLocal cleanup
+
+### 5. Testing
+
+- Use thread-local converters for test isolation
+- Clear converters in @BeforeEach/@AfterEach
+- Test with different condition inputs
+
+---
 
 ## 🔍 Troubleshooting
 
@@ -301,5 +372,23 @@ dependencies.
     - Check supported types in converter documentation.
 
 ---
+## Support
+
+If you find this library useful, consider supporting me:
+
+[Buy me a coffee](https://revolut.me/ahmedsamy85) ☕
+
+## About Me
+
+- I am Ahmed Samy Bakry Mahmoud, a dedicated Java Backend Developer with over 5 years of hands-on experience architecting, building, and maintaining scalable enterprise applications.
+- I am passionate about solving complex technical challenges, mentoring fellow developers, and delivering maintainable, high-quality code. I thrive on adopting emerging technologies and championing accessibility and best practices in software development.
+
+### Connect with Me
+
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-blue?logo=linkedin)](https://www.linkedin.com/in/java-msdt/)
+[![YouTube: Status Code - Technology](https://img.shields.io/badge/YouTube-Status%20Code%20Tech-red?logo=youtube)](https://www.youtube.com/@Status-Code)
+[![YouTube: Exploration Echoes](https://img.shields.io/badge/YouTube-Exploration%20Echoes-red?logo=youtube)](https://www.youtube.com/@Exploration-Echoes)
+[![Instagram](https://img.shields.io/badge/Instagram-Follow-pink?logo=instagram)](https://www.instagram.com/serenitydiver)
+[![Facebook](https://img.shields.io/badge/Facebook-Follow-blue?logo=facebook)](https://www.facebook.com/AhmedSamySerenity)
 
 **Happy Masking! 🔒**

@@ -1,5 +1,7 @@
 # Spring Framework Integration Guide
 
+- [Full spring guide project](https://github.com/JAVA-MSDT/MaskMe-Guide/tree/main/Spring-maskme)
+
 ## 📋 Overview
 
 - This guide demonstrates how to integrate the MaskMe library with Spring Framework applications.
@@ -12,6 +14,7 @@
 Configure MaskMe with Spring's ApplicationContext for dependency injection support:
 
 ```java
+
 @Configuration
 @RequiredArgsConstructor
 @Slf4j
@@ -23,10 +26,10 @@ public class MaskingConfiguration {
     public void setupMaskMe() {
         // Register framework provider for dependency injection
         registerFrameworkProvider();
-        
+
         // Configure a custom field regex pattern (optional)
         configureFieldPattern();
-        
+
         // Clear and register custom converters
         setupCustomConverters();
     }
@@ -75,29 +78,44 @@ public class MaskingConfiguration {
 }
 ```
 
+### ⚠️ Important: Why Register Built-in Conditions?
+
+**MaskMe creates a NEW instance every time** it encounters a condition annotation unless you register them as
+singletons.
+
+**Quick Summary:**
+
+- ✅ **Memory efficient** – One instance instead of many
+- ✅ **Better performance** – No reflection overhead
+- ✅ **Consistent with Spring patterns** – Beans are singletons by default
+- ✅ **Required for custom conditions** – Enables dependency injection
+
+**📖 See [Design Philosophy](../readME.md#-design-philosophy) for a detailed explanation.**
+
 ### Step 2: Custom Conditions with Spring DI
 
 Create Spring-managed conditions with dependency injection:
 
 ```java
+
 @Component
 public class RoleBasedMaskCondition implements MaskMeCondition {
-    
+
     @Autowired
     private UserService userService;
-    
+
     @Autowired
     private SecurityService securityService;
-    
+
     private String requiredRole;
-    
+
     @Override
     public void setInput(Object input) {
         if (input instanceof String) {
             this.requiredRole = (String) input;
         }
     }
-    
+
     @Override
     public boolean shouldMask(Object maskedFieldValue, Object objectContainingMaskedField) {
         String currentUserRole = securityService.getCurrentUserRole();
@@ -107,26 +125,26 @@ public class RoleBasedMaskCondition implements MaskMeCondition {
 
 @Component
 public class EnvironmentBasedCondition implements MaskMeCondition {
-    
+
     @Value("${app.masking.enabled:true}")
     private boolean maskingEnabled;
-    
+
     @Autowired
     private Environment environment;
-    
+
     private String environmentFlag;
-    
+
     @Override
     public void setInput(Object input) {
         if (input instanceof String) {
             this.environmentFlag = (String) input;
         }
     }
-    
+
     @Override
     public boolean shouldMask(Object maskedFieldValue, Object objectContainingMaskedField) {
         if (!maskingEnabled) return false;
-        
+
         String[] activeProfiles = environment.getActiveProfiles();
         return Arrays.asList(activeProfiles).contains(environmentFlag);
     }
@@ -139,18 +157,19 @@ Use built-in conditions in your DTOs:
 
 ```java
 public record UserDto(
-    @MaskMe(conditions = {AlwaysMaskMeCondition.class}, maskValue = "****")
-    String password,
-    
-    @MaskMe(conditions = {MaskMeOnInput.class}, maskValue = "{firstName}@masked.com")
-    String email,
-    
-    @MaskMe(conditions = {RoleBasedMaskCondition.class}, maskValue = "***-**-****")
-    String ssn,
-    
-    String firstName,
-    String lastName
-) {}
+        @MaskMe(conditions = {AlwaysMaskMeCondition.class}, maskValue = "****")
+        String password,
+
+        @MaskMe(conditions = {MaskMeOnInput.class}, maskValue = "{firstName}@masked.com")
+        String email,
+
+        @MaskMe(conditions = {RoleBasedMaskCondition.class}, maskValue = "***-**-****")
+        String ssn,
+
+        String firstName,
+        String lastName
+) {
+}
 ```
 
 ### Step 4: Field Reference Configuration
@@ -158,9 +177,10 @@ public record UserDto(
 Configure custom field reference patterns at startup:
 
 ```java
+
 @Configuration
 public class FieldPatternConfiguration {
-    
+
     @PostConstruct
     public void configureFieldPattern() {
         // Use square brackets instead of curly braces
@@ -170,11 +190,12 @@ public class FieldPatternConfiguration {
 
 // Now use in DTOs:
 public record ProductDto(
-    @MaskMe(conditions = {AlwaysMaskMeCondition.class}, maskValue = "[name]-MASKED")
-    String description,
-    
-    String name
-) {}
+        @MaskMe(conditions = {AlwaysMaskMeCondition.class}, maskValue = "[name]-MASKED")
+        String description,
+
+        String name
+) {
+}
 ```
 
 ### Step 5: Custom Converters
@@ -182,33 +203,34 @@ public record ProductDto(
 Implement Spring-aware custom converters:
 
 ```java
+
 @Component
 public class SpringEmailConverter implements MaskMeConverter {
-    
+
     @Autowired
     private MaskingProperties maskingProperties;
-    
+
     @Override
     public int getPriority() {
         return 10; // Higher than defaults
     }
-    
+
     @Override
     public boolean canConvert(Class<?> type) {
         return String.class.equals(type);
     }
-    
+
     @Override
-    public Object convert(String maskValue, Class<?> targetType, Object originalValue, 
-                         Object objectContainingMaskedField, String maskedFieldName) {
-        
+    public Object convert(String maskValue, Class<?> targetType, Object originalValue,
+                          Object objectContainingMaskedField, String maskedFieldName) {
+
         String processedValue = MaskMeFieldAccessUtil
-            .getMaskedValueFromAnotherFieldOrMaskedValue(maskValue, objectContainingMaskedField);
-        
+                .getMaskedValueFromAnotherFieldOrMaskedValue(maskValue, objectContainingMaskedField);
+
         if (fieldName.toLowerCase().contains("email")) {
             return maskingProperties.getEmailMaskPattern().replace("{value}", processedValue);
         }
-        
+
         return processedValue;
     }
 }
@@ -221,39 +243,238 @@ public class MaskingProperties {
 }
 ```
 
+## 📚 Practical Examples
+
+### Example 1: @ExcludeMaskMe Annotation
+
+Use `@ExcludeMaskMe` to prevent masking of entire objects or fields:
+
+```java
+public record UserDto(
+        String name,
+        String email,
+
+        // This entire address object will NOT be processed for masking
+        @ExcludeMaskMe
+        AddressDto address,
+
+        @MaskMe(conditions = {AlwaysMaskMeCondition.class})
+        String ssn
+) {
+}
+
+public record AddressDto(
+        String street,
+        @MaskMe(conditions = {AlwaysMaskMeCondition.class})
+        String city  // This will NOT be masked because the parent has @ExcludeMaskMe
+) {
+}
+```
+
+**Use Cases:**
+
+- Exclude complex nested objects from masking processing
+- Improve performance by skipping unnecessary fields
+- Preserve original data for non-sensitive fields
+
+### Example 2: Multiple Conditions on Same Field
+
+```java
+public record SensitiveDto(
+        // Masked if ANY condition returns true (OR logic)
+        @MaskMe(
+                conditions = {RoleBasedCondition.class, EnvironmentCondition.class, TimeBasedCondition.class},
+                maskValue = "***"
+        )
+        String sensitiveData
+) {
+}
+
+// Usage in controller
+@GetMapping("/sensitive/{id}")
+public SensitiveDto getData(@PathVariable Long id) {
+    SensitiveDto dto = service.getData(id);
+
+    return MaskMeInitializer.mask(dto,
+            RoleBasedCondition.class, "ADMIN",
+            EnvironmentCondition.class, "production",
+            TimeBasedCondition.class, LocalTime.now()
+    );
+}
+```
+
+**Behavior:** Field is masked if **ANY** condition evaluates to `true`.
+
+### Example 3: Error Handling in Controllers
+
+```java
+
+@RestController
+@RequestMapping("/users")
+@RequiredArgsConstructor
+public class UserController {
+
+    private final UserService userService;
+    private final UserMapper userMapper;
+
+    @GetMapping("/{id}")
+    public ResponseEntity<UserDto> getUser(
+            @PathVariable Long id,
+            @RequestHeader(value = "Mask-Input", required = false) String maskInput) {
+
+        try {
+            User user = userService.findUserById(id);
+            UserDto dto = userMapper.toDto(user);
+
+            // Apply masking if the header is present
+            if (maskInput != null && !maskInput.isBlank()) {
+                dto = MaskMeInitializer.mask(dto, MaskMeOnInput.class, maskInput);
+            }
+
+            return ResponseEntity.ok(dto);
+
+        } catch (MaskMeException e) {
+            log.error("Masking failed for user {}: {}", id, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(null);
+        } catch (EntityNotFoundException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @GetMapping("/batch")
+    public ResponseEntity<List<UserDto>> getBatchUsers(
+            @RequestParam List<Long> ids,
+            @RequestHeader(value = "Mask-Input", required = false) String maskInput) {
+
+        try {
+            List<UserDto> users = ids.stream()
+                    .map(userService::findUserById)
+                    .map(userMapper::toDto)
+                    .map(dto -> {
+                        try {
+                            return maskInput != null
+                                    ? MaskMeInitializer.mask(dto, MaskMeOnInput.class, maskInput)
+                                    : dto;
+                        } catch (MaskMeException e) {
+                            log.warn("Failed to mask user, returning unmasked: {}", e.getMessage());
+                            return dto; // Fallback to unmasked
+                        }
+                    })
+                    .toList();
+
+            return ResponseEntity.ok(users);
+
+        } catch (Exception e) {
+            log.error("Batch processing failed: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @ExceptionHandler(MaskMeException.class)
+    public ResponseEntity<ErrorResponse> handleMaskingException(MaskMeException e) {
+        log.error("Masking error: {}", e.getMessage(), e);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ErrorResponse("MASKING_ERROR", "Failed to mask sensitive data"));
+    }
+}
+
+```
+
+### Example 4: Logging Output
+
+#### Enable Logging in Configuration
+
+```java
+
+@Configuration
+public class MaskMeConfiguration {
+
+    @PostConstruct
+    public void setupMaskMe() {
+        // Enable DEBUG level logging
+        MaskMeLogger.enable(Level.FINE);
+
+        log.info("MaskMe library initialized with logging enabled");
+    }
+}
+```
+
+#### Expected Log Output
+
+```log
+2025-01-10T10:15:30.123+02:00  INFO 12345 --- [main] c.j.m.m.c.MaskMeConfiguration : MaskMe library initialized with logging enabled
+
+2025-01-10T10:15:31.456+02:00  INFO 12345 --- [main] c.j.m.a.c.MaskMeConditionFactory : [DEBUGGING] Registering framework provider: SpringFrameworkProvider
+
+2025-01-10T10:15:32.789+02:00  INFO 12345 --- [nio-9090-exec-1] c.j.m.i.c.MaskMeOnInput : [DEBUGGING] Input set to: maskMe
+
+2025-01-10T10:15:32.890+02:00  INFO 12345 --- [nio-9090-exec-1] c.j.m.i.c.AlwaysMaskMeCondition : [DEBUGGING] Condition evaluated: shouldMask=true for field=password
+
+2025-01-10T10:15:32.991+02:00  INFO 12345 --- [nio-9090-exec-1] c.j.m.a.c.MaskMeConverter : [DEBUGGING] Converting field 'email' from String to String with maskValue='[EMAIL PROTECTED]'
+
+2025-01-10T10:15:33.092+02:00  WARN 12345 --- [nio-9090-exec-1] c.j.m.a.c.MaskMeConverterRegistry : Fallback conversion used for field 'balance' - no custom converter found
+
+2025-01-10T10:15:33.193+02:00  INFO 12345 --- [nio-9090-exec-1] c.j.m.MaskMeProcessor : Successfully masked 5 fields in UserDto
+```
+
+#### Logging Levels Explained
+
+- **INFO**: High-level operations (initialization, successful masking)
+- **DEBUG** (`Level.FINE`): Detailed traces (condition evaluation, field processing)
+- **WARN**: Recoverable issues (fallback conversions, missing fields)
+- **ERROR**: Critical failures (condition creation errors, invalid inputs)
+
+#### Disable Logging for Production
+
+```java
+
+@Configuration
+@Profile("production")
+public class ProductionMaskMeConfiguration {
+
+    @PostConstruct
+    public void setupMaskMe() {
+        // Disable logging for zero overhead
+        MaskMeLogger.disable();
+    }
+}
+```
+
 ## 🎯 Controller Integration
 
 ### Using MaskMeInitializer (Recommended)
 
 ```java
+
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
 public class UserController {
-    
+
     private final UserService userService;
     private final UserMapper userMapper;
-    
+
     @GetMapping("/{id}")
     public UserDto getUser(@PathVariable Long id,
-                          @RequestHeader(value = "X-Mask-Level", defaultValue = "none") String maskLevel) {
-        
+                           @RequestHeader(value = "X-Mask-Level", defaultValue = "none") String maskLevel) {
+
         User user = userService.findById(id);
         UserDto dto = userMapper.toDto(user);
-        
+
         return MaskMeInitializer.mask(dto,
-            MaskMeOnInput.class, maskLevel,
-            RoleBasedMaskCondition.class, "ADMIN"
+                MaskMeOnInput.class, maskLevel,
+                RoleBasedMaskCondition.class, "ADMIN"
         );
     }
-    
+
     @GetMapping
     public List<UserDto> getUsers(@RequestHeader(value = "X-Environment", defaultValue = "prod") String env) {
-        
+
         return userService.findAll().stream()
-            .map(userMapper::toDto)
-            .map(dto -> MaskMeInitializer.mask(dto, EnvironmentBasedCondition.class, env))
-            .toList();
+                .map(userMapper::toDto)
+                .map(dto -> MaskMeInitializer.mask(dto, EnvironmentBasedCondition.class, env))
+                .toList();
     }
 }
 ```
@@ -261,24 +482,25 @@ public class UserController {
 ### Using MaskMeProcessor with Spring DI
 
 ```java
+
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
 public class UserController {
-    
+
     private final UserService userService;
     private final MaskMeProcessor maskProcessor;
-    
+
     @GetMapping("/{id}/detailed")
     public UserDto getDetailedUser(@PathVariable Long id,
-                                  @RequestParam(defaultValue = "false") boolean maskSensitive) {
-        
+                                   @RequestParam(defaultValue = "false") boolean maskSensitive) {
+
         try {
             maskProcessor.setConditionInput(MaskMeOnInput.class, maskSensitive ? "maskMe" : "none");
-            
+
             User user = userService.findById(id);
             UserDto dto = userMapper.toDto(user);
-            
+
             return maskProcessor.process(dto);
         } finally {
             maskProcessor.clearInputs();
@@ -292,17 +514,18 @@ public class UserController {
 ### Request-Scoped Converters
 
 ```java
+
 @RestController
 @RequiredArgsConstructor
 public class AdvancedMaskingController {
-    
+
     @GetMapping("/users/{id}/custom-mask")
     public UserDto getUserWithCustomMask(@PathVariable Long id,
-                                        @RequestHeader("X-Mask-Pattern") String pattern) {
-        
+                                         @RequestHeader("X-Mask-Pattern") String pattern) {
+
         // Register request-scoped converter
         MaskMeConverterRegistry.registerRequestScoped(new CustomPatternConverter(pattern));
-        
+
         try {
             User user = userService.findById(id);
             return MaskMeInitializer.mask(userMapper.toDto(user));
@@ -314,24 +537,24 @@ public class AdvancedMaskingController {
 
 public class CustomPatternConverter implements MaskMeConverter {
     private final String pattern;
-    
+
     public CustomPatternConverter(String pattern) {
         this.pattern = pattern;
     }
-    
+
     @Override
     public int getPriority() {
         return 15; // Highest priority
     }
-    
+
     @Override
     public boolean canConvert(Class<?> type) {
         return String.class.equals(type);
     }
-    
+
     @Override
     public Object convert(String maskValue, Class<?> targetType, Object originalValue,
-                         Object objectContainingMaskedField, String maskedFieldName) {
+                          Object objectContainingMaskedField, String maskedFieldName) {
         return pattern.replace("{original}", String.valueOf(originalValue));
     }
 }
@@ -340,31 +563,32 @@ public class CustomPatternConverter implements MaskMeConverter {
 ### Spring Security Integration
 
 ```java
+
 @Component
 public class SecurityAwareMaskCondition implements MaskMeCondition {
-    
+
     @Autowired
     private AuthenticationManager authenticationManager;
-    
+
     private String requiredAuthority;
-    
+
     @Override
     public void setInput(Object input) {
         if (input instanceof String) {
             this.requiredAuthority = (String) input;
         }
     }
-    
+
     @Override
     public boolean shouldMask(Object maskedFieldValue, Object objectContainingMaskedField) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        
+
         if (auth == null || !auth.isAuthenticated()) {
             return true; // Mask for unauthenticated users
         }
-        
+
         return auth.getAuthorities().stream()
-            .noneMatch(authority -> authority.getAuthority().equals(requiredAuthority));
+                .noneMatch(authority -> authority.getAuthority().equals(requiredAuthority));
     }
 }
 
@@ -374,7 +598,7 @@ public class SecurityAwareMaskCondition implements MaskMeCondition {
 public UserDto getSecureUser(@PathVariable Long id) {
     User user = userService.findById(id);
     UserDto dto = userMapper.toDto(user);
-    
+
     return MaskMeInitializer.mask(dto, SecurityAwareMaskCondition.class, "ROLE_ADMIN");
 }
 ```
@@ -382,27 +606,28 @@ public UserDto getSecureUser(@PathVariable Long id) {
 ### Configuration Properties Integration
 
 ```java
+
 @ConfigurationProperties(prefix = "maskme")
 @Configuration
 @Data
 public class MaskMeProperties {
-    
+
     private boolean enabled = true;
     private String defaultMaskValue = "***";
     private FieldPattern fieldPattern = FieldPattern.CURLY_BRACES;
     private Map<String, String> customMasks = new HashMap<>();
-    
+
     public enum FieldPattern {
         CURLY_BRACES("\\{([^}]+)\\}"),
         SQUARE_BRACKETS("\\[([^]]+)]"),
         PARENTHESES("\\(([^)]+)\\)");
-        
+
         private final String pattern;
-        
+
         FieldPattern(String pattern) {
             this.pattern = pattern;
         }
-        
+
         public Pattern getCompiledPattern() {
             return Pattern.compile(pattern);
         }
@@ -412,9 +637,9 @@ public class MaskMeProperties {
 @Configuration
 @RequiredArgsConstructor
 public class MaskMeAutoConfiguration {
-    
+
     private final MaskMeProperties properties;
-    
+
     @PostConstruct
     public void configure() {
         if (properties.isEnabled()) {
@@ -426,41 +651,73 @@ public class MaskMeAutoConfiguration {
 
 ## 🧪 Testing with Spring
 
+### Writing Your Own Tests
+
+```java
+
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@AutoConfigureMockMvc
+class MyMaskingTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @Test
+    void testCustomMasking() throws Exception {
+        MvcResult result = mockMvc.perform(get("/your-endpoint")
+                        .header("Your-Header", "value"))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        YourDto dto = objectMapper.readValue(
+                result.getResponse().getContentAsString(),
+                YourDto.class
+        );
+
+        assertThat(dto.maskedField()).isEqualTo("expected-masked-value");
+    }
+}
+```
+
 ### Unit Testing
 
 ```java
+
 @SpringBootTest
 @TestPropertySource(properties = {
-    "maskme.enabled=true",
-    "maskme.default-mask-value=TEST_MASK"
+        "maskme.enabled=true",
+        "maskme.default-mask-value=TEST_MASK"
 })
 class MaskingIntegrationTest {
-    
+
     @Autowired
     private UserService userService;
-    
+
     @Test
     void testMaskingWithSpringContext() {
         // Given
         User user = createTestUser();
         UserDto dto = userMapper.toDto(user);
-        
+
         // When
         UserDto masked = MaskMeInitializer.mask(dto, MaskMeOnInput.class, "maskMe");
-        
+
         // Then
         assertThat(masked.password()).isEqualTo("****");
         assertThat(masked.email()).contains("@masked.com");
     }
-    
+
     @Test
     void testCustomConditionWithDI() {
         // Given
         UserDto dto = createTestDto();
-        
+
         // When
         UserDto masked = MaskMeInitializer.mask(dto, RoleBasedMaskCondition.class, "USER");
-        
+
         // Then
         assertThat(masked.ssn()).isEqualTo("***-**-****");
     }
@@ -470,22 +727,23 @@ class MaskingIntegrationTest {
 ### Integration Testing
 
 ```java
+
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc
 class UserControllerIntegrationTest {
-    
+
     @Autowired
     private MockMvc mockMvc;
-    
+
     @Test
     void testMaskedEndpoint() throws Exception {
         mockMvc.perform(get("/api/users/1")
-                .header("X-Mask-Level", "maskMe"))
+                        .header("X-Mask-Level", "maskMe"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.password").value("****"))
                 .andExpect(jsonPath("$.email").value(containsString("@masked.com")));
     }
-    
+
     @Test
     @WithMockUser(roles = "ADMIN")
     void testSecureEndpointWithAdmin() throws Exception {

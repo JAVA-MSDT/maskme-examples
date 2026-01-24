@@ -17,7 +17,7 @@
 ```text
 maskme/
 ├── src/
-│   ├── main/java/com/javamsdt/maskme/
+│   ├── main/java/io/github/javamsdt/maskme/
 │   │   ├── api/
 │   │   │   ├── annotation/
 │   │   │   │   └── MaskMe.java
@@ -48,7 +48,7 @@ maskme/
 │   │   ├── logging/
 │   │   │   └── MaskMeLogger.java
 │   │   └── MaskMeInitializer.java
-│   └── test/java/com/javamsdt/maskme/
+│   └── test/java/io/github/javamsdt/maskme/
 │       ├── api/
 │       │   ├── annotation/
 │       │   │   └── MaskMeTest.java
@@ -80,19 +80,22 @@ maskme/
 │       └── MaskMeInitializerTest.java
 ├── docs/
 │   ├── 01-library-internal-architecture.md
-│   ├── 02-spring-framework-guide.md
-│   ├── 03-quarkus-framework-guide.md
-│   ├── 04-custom-conditions-and-field-patterns.md
-│   └── 05-converter.md
+│   ├── 02-pure-java-guide.md
+│   ├── 03-spring-framework-guide.md
+│   ├── 04-quarkus-framework-guide.md
+│   ├── 05-custom-conditions-and-field-patterns.md
+│   └── 06-converter.md
 ├── .github/
-│   └── actions/
-│       └── maven.yml
+│   └── workflows/
+│       └── ci.yml
 ├── .gitignore
+├── CHANGELOG.md
 ├── CODE_OF_CONDUCT.md
 ├── CONTRIBUTING.md
-├── LICENSE.txt
+├── LICENSE
 ├── pom.xml
-└── readME.md
+├── readME.md
+└── SECURITY.md
 ```
 
 ### Component Interaction Flow
@@ -151,11 +154,14 @@ maskme/
 ### 1. `@MaskMe` Annotation
 
 ```java
-@Target({ElementType.FIELD, ElementType.PARAMETER, ElementType.RECORD_COMPONENT})
+
+@Target({ElementType.FIELD, ElementType.RECORD_COMPONENT})
 @Retention(RetentionPolicy.RUNTIME)
 public @interface MaskMe {
-   String DEFAULT_MASK_VALUE = "****";
+    String DEFAULT_MASK_VALUE = "****";
+
     Class<? extends MaskCondition>[] conditions();
+
     String maskValue() default DEFAULT_MASK_VALUE;
 }
 ```
@@ -174,7 +180,7 @@ public @interface MaskMe {
 ```java
 public interface MaskMeCondition {
     boolean shouldMask(Object maskedFieldValue, Object objectContainingMaskedField);
-    
+
     default void setInput(Object input) {
         // Default implementation
     }
@@ -343,18 +349,40 @@ public interface MaskMeFrameworkProvider {
 
 - Spring: Uses ApplicationContext.getBean().
 - CDI: Uses BeanManager.
-- Custom: Manual instance creation.
+- Custom Pure java: Manual instance creation.
 
 ### Condition Factory
 
 ```java
 public class MaskMeConditionFactory {
-  private static volatile MaskMeFrameworkProvider maskMeFrameworkProvider = null;
-    
-    public static void setFrameworkProvider(MaskMeFrameworkProvider provider) {
-        frameworkProvider = provider;
-    }
-    
+  // Single framework provider (null for pure Java)
+  private static final AtomicReference<MaskMeFrameworkProvider> maskMeFrameworkProvider = new AtomicReference<>();
+
+  /**
+   * Registers your framework's provider for dependency injection support.
+   * Call this once at application startup if using Spring, Quarkus, etc.
+   *
+   * @param provider your framework's provider implementation
+   */
+  public static void setFrameworkProvider(MaskMeFrameworkProvider provider) {
+    logger.info(() -> "Setting framework provider!");
+    maskMeFrameworkProvider.set(provider);
+  }
+
+  /**
+   * Creates a MaskMeCondition instance using framework context or reflection.
+   * Prioritizes framework-managed beans for dependency injection support,
+   * with automatic fallback to direct instantiation.
+   *
+   * <p>Creation strategy:
+   * 1. Try the framework provided if available
+   * 2. Fall back to reflection-based constructor invocation
+   * 3. Throw MaskMeException if both approaches fail
+   *
+   * @param <T>            the specific MaskMeCondition type
+   * @param conditionClass the condition class to instantiate
+   * @return new condition instance
+   */
     public static <T extends MaskMeCondition> T createCondition(Class<T> conditionClass) {
         // Framework-aware instance creation
     }
@@ -371,7 +399,8 @@ public class MaskMeConditionFactory {
 
 **Why MaskMe Doesn't Cache Condition Instances:**
 
-MaskMe is **framework-agnostic** by design. It doesn't cache condition instances internally, giving you full control over lifecycle management.
+MaskMe is **framework-agnostic** by design. It doesn't cache condition instances internally, giving you full control
+over lifecycle management.
 
 #### How It Works
 
@@ -388,14 +417,20 @@ private void registerMaskConditionProvider() {
 ```
 
 #### Without Framework Registration (Reflection)
+
 ```java
-@MaskMe(conditions = {AlwaysMaskMeCondition.class}) String field1;  // New instance #1
-@MaskMe(conditions = {AlwaysMaskMeCondition.class}) String field2;  // New instance #2
-@MaskMe(conditions = {AlwaysMaskMeCondition.class}) String field3;  // New instance #3
+
+@MaskMe(conditions = {AlwaysMaskMeCondition.class})
+String field1;  // New instance #1
+@MaskMe(conditions = {AlwaysMaskMeCondition.class})
+String field2;  // New instance #2
+@MaskMe(conditions = {AlwaysMaskMeCondition.class})
+String field3;  // New instance #3
 // Result: 3 separate instances via reflection
 ```
 
 #### With Framework Registration (Singleton)
+
 ```java
 // Spring: @Bean, Quarkus: @Produces, Pure Java: Map
 @Bean
@@ -403,15 +438,19 @@ public AlwaysMaskMeCondition alwaysMaskMeCondition() {
     return new AlwaysMaskMeCondition();  // Created once
 }
 
-@MaskMe(conditions = {AlwaysMaskMeCondition.class}) String field1;  // Same instance
-@MaskMe(conditions = {AlwaysMaskMeCondition.class}) String field2;  // Same instance
-@MaskMe(conditions = {AlwaysMaskMeCondition.class}) String field3;  // Same instance
+@MaskMe(conditions = {AlwaysMaskMeCondition.class})
+String field1;  // Same instance
+@MaskMe(conditions = {AlwaysMaskMeCondition.class})
+String field2;  // Same instance
+@MaskMe(conditions = {AlwaysMaskMeCondition.class})
+String field3;  // Same instance
 // Result: 1 singleton reused 3 times
 ```
 
 #### Why This Design?
 
 **Benefits:**
+
 - ✅ Works with ANY framework (Spring, Quarkus, Guice, Pure Java)
 - ✅ A framework manages lifecycle (creation, destruction, scope)
 - ✅ No memory leaks (a framework handles cleanup)
@@ -420,12 +459,14 @@ public AlwaysMaskMeCondition alwaysMaskMeCondition() {
 
 **Alternative Would Be Worse:**
 If MaskMe cached internally, it would need to:
+
 - Manage lifecycle (when to create/destroy?)
 - Handle thread safety (synchronization overhead)
 - Deal with memory leaks (when to clear cache?)
 - Lose framework benefits (no DI, no AOP, no lifecycle hooks)
 
-**Conclusion:** Not a limitation—it's a design decision that keeps the library lightweight, framework-agnostic, and delegates lifecycle management to frameworks (their job).
+**Conclusion:** Not a limitation—it's a design decision that keeps the library lightweight, framework-agnostic, and
+delegates lifecycle management to frameworks (their job).
 
 ## 🔍 Field Processing Architecture
 
@@ -464,7 +505,7 @@ Nested Object Processing
 Output Masked Object
 ```
 
-### [Field Reference Resolution](04-custom-conditions-and-field-patterns.md)
+### [Field Reference Resolution](05-custom-conditions-and-field-patterns.md)
 
 The library supports dynamic field referencing using configurable patterns:
 
@@ -494,8 +535,8 @@ The library supports dynamic field referencing using configurable patterns:
 The library uses ThreadLocal storage for condition inputs to ensure thread safety:
 
 ```java
-private static final ThreadLocal<Map<Class<? extends MaskMeCondition>, Object>> 
-    conditionInputs = new ThreadLocal<>();
+private static final ThreadLocal<Map<Class<? extends MaskMeCondition>, Object>>
+        conditionInputs = new ThreadLocal<>();
 ```
 
 **Benefits**:
@@ -542,14 +583,14 @@ private static final ThreadLocal<Map<Class<? extends MaskMeCondition>, Object>>
 
 ## 🎯 Extension Points
 
-### [Custom Converter Development](05-converter.md)
+### [Custom Converter Development](06-converter.md)
 
 1. **Implement Converter Interface**
 2. **Set Appropriate Priority** (> 0 to override defaults)
 3. **Register in Appropriate Scope**
 4. **Handle Field Context** (fieldName, originalValue, objectContainingMaskedField)
 
-### [Custom Condition Development](04-custom-conditions-and-field-patterns.md)
+### [Custom Condition Development](05-custom-conditions-and-field-patterns.md)
 
 1. **Implement MaskMeCondition Interface**
 2. **Handle Input Processing** via `setInput()`

@@ -83,21 +83,21 @@ The library uses a modular maskMeConverter architecture with specialized convert
 
 ```java
 public class CustomEmailConverter implements Converter {
-    
+
     @Override
     public int getPriority() {
         return 10; // Higher priority than defaults (0)
     }
-    
+
     @Override
     public boolean canConvert(Class<?> type) {
         return type == String.class;
     }
-    
+
     @Override
     public Object convert(String maskValue, Class<?> targetType,
-                         Object originalValue, Object objectContainingMaskedField,
-                         String maskedFieldName) {
+                          Object originalValue, Object objectContainingMaskedField,
+                          String maskedFieldName) {
         // The processedValue is the original value from the field, it is important to use it
         // to allow masking based on another filed value
         // @MaskMe(conditions = {AlwaysMaskMeCondition.class}, maskValue = "{name} it is me")
@@ -105,7 +105,7 @@ public class CustomEmailConverter implements Converter {
         // ADD THIS LINE TO ANY CUSTOM CONVERTER SO THAT YOU CAN USE VALUE FROM ANOTHER FIELD BY DEFAULT IF IT IS PROVIDED
         // If value is empty, the processedValue will be empty as well
         String processedValue = MaskMeFieldAccessUtil.getMaskedValueFromAnotherFieldOrMaskedValue(value, objectContainingMaskedField);
-        
+
         // Your custom email masking logic
         // option 1, replace the domain with "example.com"
         if (originalValue instanceof String email && email.contains("@")) {
@@ -117,7 +117,7 @@ public class CustomEmailConverter implements Converter {
         if (fieldName.contains("email")) {
             // By providing empty maskValue, you can trigger this condition
             // eg, @MaskMe(conditions = {AlwaysMaskMeCondition.class}, maskValue = "")
-            if(processedValue.isEmpty()) { 
+            if (processedValue.isEmpty()) {
                 return "[EMAIL PROTECTED]";
             }
             return processedValue;
@@ -133,21 +133,21 @@ public class CustomEmailConverter implements Converter {
 
 ```java
 public class SensitiveDataConverter implements Converter {
-    
+
     @Override
     public int getPriority() {
         return 15;
     }
-    
+
     @Override
     public boolean canConvert(Class<?> type) {
         return type == String.class;
     }
-    
+
     @Override
     public Object convert(String maskValue, Class<?> targetType,
-                         Object originalValue, Object objectContainingMaskedField,
-                         String maskedFieldName) {
+                          Object originalValue, Object objectContainingMaskedField,
+                          String maskedFieldName) {
 
         // HERE YOU CAN DIRECTLY MODIFY THE FIELD BY IT IS NAME FOR STATIC MASKING
         return switch (fieldName) {
@@ -165,31 +165,31 @@ public class SensitiveDataConverter implements Converter {
 
 ```java
 public class FinancialConverter implements Converter {
-    
+
     @Override
     public int getPriority() {
         return 20;
     }
-    
+
     @Override
     public boolean canConvert(Class<?> type) {
         return type == BigDecimal.class;
     }
-    
+
     @Override
     public Object convert(String maskValue, Class<?> targetType,
-                         Object originalValue, Object objectContainingMaskedField,
-                         String maskedFieldName) {
-        
+                          Object originalValue, Object objectContainingMaskedField,
+                          String maskedFieldName) {
+
         if ("salary".equals(fieldName) || "amount".equals(fieldName)) {
             if (maskValue.isEmpty() && originalValue instanceof BigDecimal) {
                 // Round original value when mask is empty
                 return ((BigDecimal) originalValue)
-                    .setScale(2, RoundingMode.HALF_UP);
+                        .setScale(2, RoundingMode.HALF_UP);
             }
             return new BigDecimal("0.00");
         }
-        
+
         return null; // Default maskMeConverter handles other BigDecimal fields
     }
 }
@@ -199,30 +199,30 @@ public class FinancialConverter implements Converter {
 
 ```java
 public class CustomDateConverter implements Converter {
-    
+
     @Override
     public int getPriority() {
         return 5;
     }
-    
+
     @Override
     public boolean canConvert(Class<?> type) {
         return type == LocalDate.class;
     }
-    
+
     @Override
     public Object convert(String maskValue, Class<?> targetType,
-                         Object originalValue, Object objectContainingMaskedField,
-                         String maskedFieldName) {
-        
+                          Object originalValue, Object objectContainingMaskedField,
+                          String maskedFieldName) {
+
         if ("birthDate".equals(fieldName)) {
             return LocalDate.of(1900, 1, 1); // Always use 1900-01-01 for birthdates.
         }
-        
+
         if ("hiringDate".equals(fieldName)) {
             return LocalDate.now().minusYears(1); // Show as hired 1 year ago
         }
-        
+
         // For another date field, use library default
         return null;
     }
@@ -266,6 +266,7 @@ public class CustomDateConverter implements Converter {
 ### **2. Return null to Pass Control**
 
 ```java
+
 @Override
 public Object convert(String maskingValue, Class<?> targetFieldType, Object originalFieldValue, Object objectContainingMaskedField, String maskedFieldName) {
     if (!shouldHandleThisField(fieldName)) {
@@ -321,7 +322,7 @@ private void setupCustomConverters() {
 #### **Configuration Class**
 
 ```java
-import masking.api.io.github.javamsdt.maskme.api.processor.MaskMeProcessor;
+import masking.api.processor.api.io.github.javamsdt.maskme.MaskMeProcessor;
 import org.springframework.context.annotation.Bean;
 
 @Configuration
@@ -333,7 +334,7 @@ public class MaskingConfiguration {
     public void initializeConverters() {
         LOG.info("Initializing masking converters...");
 
-        // ✅ SAFE: Clear global converters at startup
+        // ✅ SAFE: Clear global converters at startup to avoid memory leak from the previous run.
         ConverterRegistry.clearGlobal();
 
         // Register application-wide converters
@@ -359,18 +360,19 @@ public class MaskingConfiguration {
 #### **Web Request Filter (Spring Web)**
 
 ```java
+
 @Component
 public class RequestScopeFilter implements Filter {
-    
+
     @Override
-    public void doFilter(ServletRequest request, ServletResponse response, 
+    public void doFilter(ServletRequest request, ServletResponse response,
                          FilterChain chain) throws IOException, ServletException {
-        
+
         String requestId = UUID.randomUUID().toString();
-        
+
         // Start request scope
         ConverterRegistry.startRequestScope(requestId);
-        
+
         // Add user-specific converters based on authentication
         if (request instanceof HttpServletRequest httpRequest) {
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -379,7 +381,7 @@ public class RequestScopeFilter implements Filter {
                 ConverterRegistry.registerRequestScoped(new UserAwareConverter(user));
             }
         }
-        
+
         try {
             chain.doFilter(request, response);
         } finally {
@@ -394,6 +396,7 @@ public class RequestScopeFilter implements Filter {
 
 ```java
 import io.github.javamsdt.maskme.MaskMeInitializer;
+
 @RestController
 @RequestMapping("/api/users")
 public class UserController {
@@ -477,19 +480,20 @@ public class BackgroundJobService {
 #### **Quarkus Configuration**
 
 ```java
+
 @ApplicationScoped
 public class MaskingInitializer {
-    
+
     @PostConstruct
     public void init() {
-        // Quarkus handles hot reload - always clear first
+        // Quarkus handles hot reload - always clear first to avoid memory leaks from previous run.
         ConverterRegistry.clearGlobal();
-        
+
         // Register converters
         ConverterRegistry.registerGlobal(new CustomEmailConverter());
         ConverterRegistry.registerGlobal(new QuarkusSpecificConverter());
     }
-    
+
     @PreDestroy
     public void destroy() {
         ConverterRegistry.clearGlobal();
@@ -620,36 +624,37 @@ class UserControllerIntegrationTest {
 ### **Multi-Tenant Application**
 
 ```java
+
 @Component
 public class TenantConverterManager {
-    
+
     private final Map<String, List<Converter>> tenantConverters = new ConcurrentHashMap<>();
-    
+
     @PostConstruct
     public void loadTenantConverters() {
         // Load all tenant converters at startup
         tenantConverters.put("tenant-a", loadConvertersForTenant("tenant-a"));
         tenantConverters.put("tenant-b", loadConvertersForTenant("tenant-b"));
     }
-    
+
     @Component
     public class TenantFilter implements Filter {
-        
+
         @Override
         public void doFilter(ServletRequest request, ServletResponse response,
-                            FilterChain chain) throws IOException, ServletException {
-            
+                             FilterChain chain) throws IOException, ServletException {
+
             String tenantId = extractTenantId(request);
-            
+
             // Start request scope
             ConverterRegistry.startRequestScope(request.getRequestId());
-            
+
             // Add tenant-specific converters
             List<Converter> converters = tenantConverters.get(tenantId);
             if (converters != null) {
                 converters.forEach(ConverterRegistry::registerRequestScoped);
             }
-            
+
             try {
                 chain.doFilter(request, response);
             } finally {
@@ -663,20 +668,21 @@ public class TenantConverterManager {
 ### **Dynamic Converter Loading**
 
 ```java
+
 @Service
 public class DynamicConverterService {
-    
+
     @Scheduled(fixedDelay = 300000) // Every 5 minutes
     public void reloadConverters() {
         // Load fresh converters from database/config
         List<Converter> newConverters = loadLatestConverters();
-        
+
         // Swap converters atomically
         synchronized (ConverterRegistry.class) {
             ConverterRegistry.clearGlobal();
             newConverters.forEach(ConverterRegistry::registerGlobal);
         }
-        
+
         LOG.info("Reloaded {} converters", newConverters.size());
     }
 }
@@ -685,10 +691,11 @@ public class DynamicConverterService {
 ### **Blue-Green Deployment**
 
 ```java
+
 @Configuration
 @Profile("blue")
 public class BlueDeploymentConfig {
-    
+
     @PostConstruct
     public void init() {
         ConverterRegistry.clearGlobal();
@@ -700,7 +707,7 @@ public class BlueDeploymentConfig {
 @Configuration
 @Profile("green")
 public class GreenDeploymentConfig {
-    
+
     @PostConstruct
     public void init() {
         ConverterRegistry.clearGlobal();
@@ -793,22 +800,23 @@ private void debugConverters() {
 ### **Monitor Scope Activity**
 
 ```java
+
 @Aspect
 @Component
 public class ConverterMonitoringAspect {
-    
+
     @Around("execution(* com.yourpackage..*.*(..))")
     public Object monitorConverterUsage(ProceedingJoinPoint joinPoint) throws Throwable {
         String scopeInfo = ConverterRegistry.getCurrentScopeInfo();
-        LOG.debug("MaskMeConverter scope before {}: {}", 
-            joinPoint.getSignature().getName(), scopeInfo);
-        
+        LOG.debug("MaskMeConverter scope before {}: {}",
+                joinPoint.getSignature().getName(), scopeInfo);
+
         Object result = joinPoint.proceed();
-        
-        LOG.debug("MaskMeConverter scope after {}: {}", 
-            joinPoint.getSignature().getName(), 
-            ConverterRegistry.getCurrentScopeInfo());
-        
+
+        LOG.debug("MaskMeConverter scope after {}: {}",
+                joinPoint.getSignature().getName(),
+                ConverterRegistry.getCurrentScopeInfo());
+
         return result;
     }
 }
