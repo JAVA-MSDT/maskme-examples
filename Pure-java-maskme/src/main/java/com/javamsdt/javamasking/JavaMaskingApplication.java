@@ -67,6 +67,8 @@ public class JavaMaskingApplication {
         userMasking.getUsers("maskMe", "01000000000");
 
         System.out.println("\n" + "=".repeat(60));
+
+        MaskMeConfiguration.destroy();
     }
 
 
