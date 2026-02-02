@@ -6,7 +6,7 @@ import com.javamsdt.javamasking.maskme.config.MaskMeConfiguration;
 import com.javamsdt.javamasking.service.UserService;
 
 /**
- * Main application demonstrating MaskMe library usage in pure Java.
+ * The main application demonstrating MaskMe library usage in pure Java.
  * <p>
  * This application showcases four different masking scenarios without
  * any framework dependencies (Spring, Quarkus, etc.).
@@ -63,7 +63,7 @@ public class JavaMaskingApplication {
         // 3. Get domain entity (always masks certain fields)
         userMasking.getUserEntity(1L);
 
-        // 4. Get all users with phone masking for specific number
+        // 4. Get all users with phone masking for a specific number
         userMasking.getUsers("maskMe", "01000000000");
 
         System.out.println("\n" + "=".repeat(60));

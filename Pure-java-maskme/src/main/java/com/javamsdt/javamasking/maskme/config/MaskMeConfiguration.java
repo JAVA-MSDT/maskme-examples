@@ -90,7 +90,7 @@ public class MaskMeConfiguration {
     /**
      * Registers a framework provider that resolves condition instances from the registry.
      * <p>
-     * This provider is used by MaskMe library to obtain condition instances
+     * This provider is used by the MaskMe library to get condition instances
      * when processing masked fields. It performs a simple Map lookup.
      * </p>
      */
