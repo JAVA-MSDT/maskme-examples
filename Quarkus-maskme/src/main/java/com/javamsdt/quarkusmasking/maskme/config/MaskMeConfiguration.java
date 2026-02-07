@@ -49,7 +49,7 @@ public class MaskMeConfiguration {
     /**
      * Initializes MaskMe configuration on application startup.
      * <p>
-     * This method is automatically invoked by Quarkus when the application starts.
+     * Quarkus automatically invokes this method when the application starts.
      * It configures logging, registers the CDI framework provider, and sets up custom converters.
      * </p>
      *
@@ -95,13 +95,6 @@ public class MaskMeConfiguration {
         return new MaskMeOnInput();
     }
 
-//    @Produces
-//    @ApplicationScoped
-//    @Unremovable
-//    public PhoneMaskingCondition phoneMaskingCondition(UserService userService) {
-//        return new PhoneMaskingCondition(userService);
-//    }
-
     /**
      * Registers the Quarkus CDI framework provider with MaskMe.
      * <p>
@@ -139,7 +132,7 @@ public class MaskMeConfiguration {
     /**
      * Cleans up resources on application shutdown.
      * <p>
-     * This method is automatically invoked by Quarkus when the application stops.
+     * Quarkus automatically invokes this method when the application stops.
      * It clears all global converters to prevent memory leaks.
      * </p>
      *
